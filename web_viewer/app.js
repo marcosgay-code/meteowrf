@@ -82,7 +82,8 @@ const els = {
 
 async function init() {
     try {
-        const resp = await fetch('manifest.json');
+        // Añadimos un timestamp para evitar que el navegador guarde el archivo en caché
+        const resp = await fetch('manifest.json?t=' + new Date().getTime());
         state.manifest = await resp.json();
 
         // Show last updated
