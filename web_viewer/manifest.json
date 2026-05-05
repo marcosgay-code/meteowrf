@@ -121,12 +121,6 @@
     "soundings": {
       "d02": [
         {
-          "id": "lapam\u00e1n",
-          "name": "Lapam\u00e1n",
-          "lat": 42.33145048629876,
-          "lon": -8.742886662507773
-        },
-        {
           "id": "iroite",
           "name": "Iroite",
           "lat": 42.72905711868237,
@@ -281,6 +275,36 @@
           "name": "Xiabre",
           "lat": 42.63169509901904,
           "lon": -8.698931213941316
+        },
+        {
+          "id": "comado",
+          "name": "Comado",
+          "lat": 43.527219,
+          "lon": -7.170281
+        },
+        {
+          "id": "faroleiro",
+          "name": "Faroleiro",
+          "lat": 43.759972,
+          "lon": -7.871222
+        },
+        {
+          "id": "ponzos",
+          "name": "Ponzos",
+          "lat": 43.551194,
+          "lon": -8.254297
+        },
+        {
+          "id": "loira",
+          "name": "Loira",
+          "lat": 42.355401,
+          "lon": -8.746295
+        },
+        {
+          "id": "san_xian",
+          "name": "San Xian",
+          "lat": 41.944237,
+          "lon": -8.87726
         }
       ],
       "d01": []
@@ -335,11 +359,6 @@
       }
     ],
     "takeoffs": [
-      {
-        "name": "Lapam\u00e1n",
-        "lat": 42.33145048629876,
-        "lon": -8.742886662507773
-      },
       {
         "name": "Iroite",
         "lat": 42.72905711868237,
@@ -469,6 +488,31 @@
         "name": "Xiabre",
         "lat": 42.63169509901904,
         "lon": -8.698931213941316
+      },
+      {
+        "name": "Comado",
+        "lat": 43.527219,
+        "lon": -7.170281
+      },
+      {
+        "name": "Faroleiro",
+        "lat": 43.759972,
+        "lon": -7.871222
+      },
+      {
+        "name": "Ponzos",
+        "lat": 43.551194,
+        "lon": -8.254297
+      },
+      {
+        "name": "Loira",
+        "lat": 42.355401,
+        "lon": -8.746295
+      },
+      {
+        "name": "San Xian",
+        "lat": 41.944237,
+        "lon": -8.87726
       }
     ],
     "domain_bounds": {
@@ -567,6 +611,6 @@
       19
     ]
   },
-  "last_updated": "2026-05-05 10:34:22",
+  "last_updated": "2026-05-05 15:21:51",
   "base_path": "PLOTS/Galicia"
 }

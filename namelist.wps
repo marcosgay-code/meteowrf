@@ -1,8 +1,8 @@
 &share
  wrf_core = 'ARW',
  max_dom = 2,
- start_date = '2026-05-07_06:00:00','2026-05-07_06:00:00'
- end_date   = '2026-05-07_19:00:00','2026-05-07_19:00:00'
+ start_date = '2026-05-05_18:00:00','2026-05-05_18:00:00'
+ end_date   = '2026-05-05_20:00:00','2026-05-05_20:00:00'
  interval_seconds = 3600,
  io_form_geogrid = 2,
  opt_output_from_geogrid_path = './',
@@ -12,16 +12,16 @@
 &geogrid
  parent_id            = 1, 1,
  parent_grid_ratio    = 1, 5,
- i_parent_start       = 1, 20,
- j_parent_start       = 1, 26,
- e_we                 = 89, 231,
- e_sn                 = 90, 226,
+ i_parent_start       = 1, 31,
+ j_parent_start       = 1, 29,
+ e_we                 = 101, 201,
+ e_sn                 = 101, 241,
  geog_data_res        = '30s', '30s',
  dx                   = 6000,
  dy                   = 6000,
  map_proj             = 'lambert',
- ref_lat              = 42.483,
- ref_lon              = -7.584,
+ ref_lat              = 42.618,
+ ref_lon              = -8.023,
  truelat1             = 42.429,
  truelat2             = 42.429,
  stand_lon            = -7.657,
