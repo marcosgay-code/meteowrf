@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>WRF Domain Wizard</title>
+    <meta charset="utf-8" />
+    <meta name="description" content="Implementación HTML de la interfaz gráfica para el Sistema de Preprocesamiento WRF (WPS) y namelist.input" />
+    <meta name="keywords" content="WRF,WPS,WRF Domain Wizard, Asistente de Dominios WRF" />
+    <meta name="author" content="Jiri Richter" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+    <link rel="stylesheet" href="build/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="build/lib/leaflet.css" />
+    <link rel="stylesheet" href="build/lib/all.min.css" />
+    <link rel="stylesheet" href="build/lib/leaflet-sidebar.min.css" />
+    <link rel="stylesheet" href="build/lib/bootstrap-datetimepicker.min.css" />
+    <link rel="stylesheet" href="build/lib/bootstrap-select.min.css" />
+    
+    <link rel="stylesheet" href="build/css/wrf-domain-wizard.css?1731901564350" />
+
+    <link rel="icon" href="build/img/globe_32x32.png" />
+
+    
+</head>
+<body>
+
+    <div id="map">
+
+        <div id="sidebar" class="leaflet-sidebar collapsed">
+            <!-- Nav tabs -->
+            <div class="leaflet-sidebar-tabs">
+				<ul role="tablist"> <!-- pestañas alineadas en la parte superior -->
+				<li title="Dominios WRF"><a href="#domains" role="tab"><i class="fas fa-vector-square"></i></a></li>
+				<li title="Superposición de datos de elevación satelital"><a href="#elevation-data" role="tab"><i class="fas fa-satellite"></i></a></li>
+				<li title="Archivos geográficos"><a href="#geographic-files" role="tab"><i class="fas fa-map-marked-alt"></i></a></li>
+				<li title="Configuración del asistente de dominios"><a href="#settings" role="tab"><i class="fas fa-cog"></i></a></li>
+				<li title="Acerca del asistente de dominios"><a href="#about" role="tab"><i class="fas fa-info-circle"></i></a></li>
+				</ul>
+
+				<ul role="tablist"> <!-- pestañas alineadas en la parte inferior -->
+                </ul>
+            </div>
+        
+            <!-- Tab panes -->
+            <div class="leaflet-sidebar-content">
+                <div class="leaflet-sidebar-pane" id="about">
+    <h1 class="leaflet-sidebar-header">
+        Acerca de
+        <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+    </h1>
+    <p>
+        El Asistente de Dominios WRF es una aplicación de una sola página para simplificar la creación, visualización y modificación del archivo de entrada namelist.wps del  <a href="https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/wps.html#" target="_blank">WRF Preprocessing System (WPS)</a> namelist.wps input file.
+    </p>
+
+    <div class="font-weight-bold mt-1">Enlaces Útiles:</div>
+
+    <div class="list-group">
+        <a href="https://github.com/JiriRichter/WRFDomainWizard" target="_blank" class="list-group-item list-group-item-action list-group-item-primary"><i class="fab fa-github mr-1"></i>Repositorio de Código Original en GitHub</a>
+        <a href="./WRFDomainWizard_ES.zip" target="_blank" class="list-group-item list-group-item-action list-group-item-primary"><i class="fab fa-github mr-1"></i>Código de esta versión en formato zip</a>
+        <a href="https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/index.html" target="_blank" class="list-group-item list-group-item-action">Guía del Usuario de WRF</a>
+        <a href="https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/wps.html#wps-namelist-variables" target="_blank" class="list-group-item list-group-item-action">Variables del Namelist WPS</a>
+        <a href="https://www2.mmm.ucar.edu/wrf/users/namelist_best_prac_wps.html" target="_blank" class="list-group-item list-group-item-action">Mejores Prácticas: namelist.wps</a>
+        <a href="https://www2.mmm.ucar.edu/wrf/users/namelist_best_prac_wrf.html" target="_blank" class="list-group-item list-group-item-action">Mejores Prácticas: namelist.input</a>
+    </div>
+</div>
+                <div class="leaflet-sidebar-pane" id="elevation-data">
+    <h1 class="leaflet-sidebar-header">Datos de Elevación<span class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
+    <div class="elevation-data-overlays">
+    </div>
+    <div class="leaflet-sidebar-pane-bottom">
+        <button role="button" class="btn btn-sm btn-secondary">Limpiar Historial</button>
+    </div>
+</div>
+                <div class="leaflet-sidebar-pane" id="domains">
+    <h1 class="leaflet-sidebar-header">Dominios<span class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></span></h1>
+
+    <div class="wps-top-buttons">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="button-wps-new"><i class="far fa-object-group"></i></i>Nuevo</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="button-wps-open"><i class="fas fa-folder-open"></i>Abrir</button>
+        <input id="file-open" type="file" style="display: none;" />
+    </div>
+
+    <div id="container-wps-form" style="display: none">
+        <form id="wps-form" class="needs-validation" novalidate>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains" title="Una cadena de caracteres configurada como 'ARW' o 'NMM' que indica al WPS para qué núcleo dinámico se están preparando los datos de entrada.">wrf_core</span>
+                </div>
+                <input name="wrf_core" type="text" class="form-control" value="ARW" disabled>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains" title="Proyección del dominio de simulación">map_proj</span>
+                </div>
+                <select name="map_proj" class="form-control" aria-describedby="basic-addon1">
+                    <option value="lambert" data-title="La proyección conforme de Lambert es adecuada para dominios de latitud media">lambert</option>
+                    <option value="mercator" data-title="La proyección de Mercator es buena para dominios de baja latitud o dominios con extensión predominantemente oeste-este">mercator</option>
+                    <option value="polar" data-title="La proyección estereográfica polar es la más adecuada para dominios WRF de alta latitud">polar</option>
+                    <option value="lat-lon" data-title="La proyección cilíndrica equidistante es necesaria para simulaciones globales, aunque en su aspecto rotado (es decir, cuando pole_lat, pole_lon y stand_lon cambian de sus valores predeterminados) también puede ser adecuada para dominios regionales en cualquier parte de la superficie terrestre">lat-lon</option>
+                </select>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains-2" title="Un valor real que especifica la parte de latitud de una ubicación (latitud, longitud) cuya ubicación (i,j) en el dominio de simulación es conocida. Para ARW, ref_lat da la latitud del punto central del dominio grueso por defecto (es decir, cuando ref_x y ref_y no se especifican). Para NMM, ref_lat siempre da la latitud a la que se rota el origen.">ref_lat</span>
+                    <span class="input-group-text all-domains-2" title="Un valor real que especifica la parte de longitud de una ubicación (latitud, longitud) cuya ubicación (i, j) en el dominio de simulación es conocida. Para ARW, ref_lon da la longitud del punto central del dominio grueso por defecto (es decir, cuando ref_x y ref_y no se especifican). Para NMM, ref_lon siempre da la longitud a la que se rota el origen. Tanto para ARW como para NMM, las longitudes oeste son negativas, y el valor de ref_lon debe estar en el rango [-180, 180].">ref_lon</span>
+                </div>
+                <input name="ref_lat" type="number" class="form-control" aria-describedby="basic-addon1" required min="-180" max="180" step="0.001">
+                <input name="ref_lon" type="number" class="form-control" aria-describedby="basic-addon1" required min="-180" max="180" step="0.001">
+                <div class="invalid-feedback">Seleccione un valor entre -180 y 180</div>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains" title="Un valor real que especifica, para ARW, la primera latitud verdadera para la proyección conforme de Lambert, o la única latitud verdadera para las proyecciones de Mercator y estereográfica polar. Para NMM, truelat1 se ignora.">truelat1</span>
+                </div>
+                <input name="truelat1" type="number" class="form-control" aria-describedby="basic-addon1" required min="-180" max="180" step="0.001">
+                <div class="invalid-feedback">Seleccione un valor entre -180 y 180</div>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains" title="Un valor real que especifica, para ARW, la segunda latitud verdadera para la proyección cónica conforme de Lambert. Para todas las demás proyecciones, truelat2 se ignora.">truelat2</span>
+                </div>
+                <input name="truelat2" type="number" class="form-control" required min="-180" max="180" step="0.001">
+                <div class="invalid-feedback">Seleccione un valor entre -180 y 180</div>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains" title="Un valor real que especifica, para ARW, la longitud que es paralela al eje y en las proyecciones conforme de Lambert y estereográfica polar. Para la proyección regular de latitud-longitud, este valor da la rotación sobre los polos geográficos de la tierra. Para NMM, stand_lon se ignora.">stand_lon</span>
+                </div>
+                <input name="stand_lon" type="number" class="form-control" required min="-180" max="180" step="0.001">
+                <div class="input-group-append">
+                    <button id="stan-lon-plus" type="button" class="btn btn-light" title="Rotar la cuadrícula de Lambert a la izquierda 5 grados"><i class="fas fa-undo"></i></button>
+                    <button id="stan-lon-minus" type="button" class="btn btn-light" title="Rotar la cuadrícula de Lambert a la derecha 5 grados"><i class="fas fa-undo" style="transform:scaleX(-1)"></i></button>
+                </div>
+                <div class="invalid-feedback">Seleccione un valor entre -180 y 180</div>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text all-domains-2" title="Para la proyección de latitud-longitud para ARW, la latitud del Polo Norte con respecto a la cuadrícula computacional de latitud-longitud en la que -90.0 grados de latitud está en la parte inferior de un dominio global, 90.0 grados de latitud está en la parte superior y 180.0 grados de longitud está en el centro.">pole_lat</span>
+                    <span class="input-group-text all-domains-2" title="Para la proyección de latitud-longitud para ARW, la longitud del Polo Norte con respecto a la cuadrícula computacional de lat/lon en la que -90.0 grados de latitud está en la parte inferior de un dominio global, 90.0 grados de latitud está en la parte superior y 180.0 grados de longitud está en el centro.">pole_lon</span>
+                </div>
+                <input name="pole_lat" type="number" class="form-control" aria-describedby="basic-addon1" min="-180" max="180" step="0.001" value="90.000">
+                <input name="pole_lon" type="number" class="form-control" aria-describedby="basic-addon1" min="-180" max="180" step="0.001" value="0">
+                <div class="invalid-feedback">Seleccione un valor entre -180 y 180</div>
+            </div>
+            <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <span class="input-group-text" title="Un valor real que especifica la distancia de la cuadrícula en la dirección x donde el factor de escala del mapa es 1. Para ARW, la distancia de la cuadrícula está en metros para la proyección 'polar', 'lambert' y 'mercator', y en grados de longitud para la proyección 'lat-lon'; para NMM, la distancia de la cuadrícula está en grados de longitud.">dx</span>
+                    <span class="input-group-text" title="Un valor real que especifica la distancia nominal de la cuadrícula en la dirección y donde el factor de escala del mapa es 1. Para ARW, la distancia de la cuadrícula está en metros para la proyección 'polar', 'lambert' y 'mercator', y en grados de latitud para la proyección 'lat-lon'; para NMM, la distancia de la cuadrícula está en grados de latitud.">dy</span>
+                </div>
+                <input name="dx" type="number" class="form-control" aria-describedby="basic-addon1" required min="1">
+                <input name="dy" type="number" class="form-control" aria-describedby="basic-addon1" required min="1" disabled>
+                <div class="input-group-append">
+                    <button id="div-3" type="button" class="btn btn-light" title="Dividir por 3"><i class="fas fa-divide"></i></button>
+                    <button id="div-2" type="button" class="btn btn-light" title="Dividir por 2" style="font-size:smaller;"><i class="fas fa-divide"></i></button>
+                    <button id="mul-2" type="button" class="btn btn-light" title="Multiplicar por 2" style="font-size:smaller;"><i class="fas fa-times"></i></button>
+                    <button id="mul-3" type="button" class="btn btn-light" title="Multiplicar por 3"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div id="grid-error" class="invalid-feedback">Seleccione un valor mayor que 100</div>
+            <div id="grids-header" class="btn-toolbar justify-content-between border-bottom align-items-end mt-2">
+                <h5>Cuadrículas</h5>
+                <div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button data-action="add-moad" type="button" class="btn btn-light" title="Añadir cuadrícula padre">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </button>
+                        <button data-action="remove-moad" type="button" class="btn btn-light" title="Eliminar cuadrícula y hacer que su anidada sea la cuadrícula superior">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="grids">
+                <div id="grid_template" class="container-grid" style="display: none">
+                    <div class="btn-toolbar justify-content-between align-items-end grid-header" role="toolbar">
+                        <div>
+                            <label class="grid-label">d01</label>
+                        </div>
+                        <div>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button data-action="remove-nest" type="button" class="btn btn-light" title="Eliminar anidación y sus anidaciones">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button data-action="add-nest" type="button" class="btn btn-light" title="Añadir anidación">
+                                    <i class="far fa-plus-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="width: 139px" title="La relación de anidación relativa al padre del dominio">parent_grid_ratio</span>
+                        </div>
+                        <input name="parent_grid_ratio" type="number" class="form-control" required min="1" max="10" />
+                        <div data-val-for="parent_grid_ratio" class="invalid-feedback">Seleccione un valor entre 1 y 10</div>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="width: 100px" title="La coordenada x de la esquina inferior izquierda de la anidación en la cuadrícula no escalonada del padre. Para el dominio más grueso, se debe especificar un valor de 1.">i_parent_start</span>
+                            <span class="input-group-text" style="width: 40px" title="La coordenada y de la esquina inferior izquierda de la anidación en la cuadrícula no escalonada del padre. Para el dominio más grueso, se debe especificar un valor de 1.">j</span>
+                        </div>
+                        <input name="i_parent_start" type="number" class="form-control" required min="1" />
+                        <input name="j_parent_start" type="number" class="form-control" required min="1" />
+                        <div data-val-for="i_parent_start" class="invalid-feedback"></div>
+                        <div data-val-for="j_parent_start" class="invalid-feedback"></div>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="width: 70px" title="Dimensión completa oeste-este de la anidación. Para dominios anidados, e_we debe ser uno mayor que un múltiplo entero de parent_grid_ratio de la anidación (es decir, e_we = n*parent_grid_ratio+1 para algún entero positivo n).">e_we</span>
+                            <span class="input-group-text" style="width: 70px" title="Dimensión completa sur-norte de la anidación. Para dominios anidados, e_sn debe ser uno mayor que un múltiplo entero de parent_grid_ratio de la anidación (es decir, e_sn = n*parent_grid_ratio+1 para algún entero positivo n).">e_sn</span>
+                        </div>
+                        <input name="e_we" type="number" class="form-control" required min="10" />
+                        <input name="e_sn" type="number" class="form-control" required min="10" />
+                        <div data-val-for="e_we" class="invalid-feedback"></div>
+                        <div data-val-for="e_sn" class="invalid-feedback"></div>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1" style="width: 139px" title="Una resolución correspondiente o lista de resoluciones separadas por símbolos + de datos de origen que se utilizarán al interpolar datos terrestres estáticos a la cuadrícula de la anidación.">geog_data_res</span>
+                        </div>
+                        <span class="d-inline-block form-control" data-name="geog_data_res"></span>
+                        <div class="input-group-append">
+                            <button data-action="geog-data-res-edit" class="btn btn-light" type="button" title="Editar geog_data_res"><i class="fas fa-edit"></i></button>
+                        </div>
+                    </div>
+                    <table class="table-grid-corners" cellpadding="0" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>corners (lat,lon)</th>
+                                <th>W</th>
+                                <th>E</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>N</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>S</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="leaflet-sidebar-pane-bottom">
+                <button id="update-domain" type="button" class="btn btn-primary btn-sm">Actualizar</button>
+                <button type="button" class="btn btn-sm btn-primary" id="button-wps-save"><i class="fas fa-save mr-1"></i>Guardar</button>
+                <button id="reset-domain" type="button" class="btn btn-secondary btn-sm">Restablecer</button>
+                <button id="save-png" type="button" class="btn btn-info btn-sm" title="Capturar una imagen de la vista actual del mapa"><i class="fas fa-camera"></i></button>
+                <button id="button-namelist-input" type="button" class="btn btn-info btn-sm" title="Editar namelist.input">namelist.input</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+                <div class="leaflet-sidebar-pane" id="geographic-files">
+    <h1 class="leaflet-sidebar-header">
+        Archivos Geográficos
+        <span class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></span>
+    </h1>
+    <div class="alert alert-sm alert-info mt-2" role="alert">
+        <p>
+        Utilice esta pestaña para mostrar características geográficas de varios archivos de datos.
+        Esto está destinado a ayudar en el diseño de dominios WRF basados en las ubicaciones de las características mostradas. 
+        </p>
+        <p>
+        La herramienta actualmente admite los formatos de archivo GeoJSON, KMZ, KML, GPX y WPT. Si se necesita un formato de archivo adicional, por favor, envíe una solicitud de función en la <a href="https://github.com/JiriRichter/WRFDomainWizard/issues" target="_blank">página de problemas del proyecto en GitHub</a>.
+        </p>
+    </div>
+    <div class="mt-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="button-geographic-file-remove"><i class="fas fa-trash-alt mr-1"></i>Eliminar Todos</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="button-geographic-file-add"><i class="fas fa-folder-open mr-1"></i>Añadir Archivo</button>
+        <input id="input-geographic-file" type="file" style="display: none;" />
+    </div>
+    <div id="geographic-file-layers" class="mt-2">
+    </div>
+</div>
+                <div class="leaflet-sidebar-pane" id="settings">
+    <h1 class="leaflet-sidebar-header">
+        Configuración
+        <span class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></span>
+    </h1>
+    <div class="my-2">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="" name="showGraticule">
+            <label class="form-check-label" for="showGraticule">Mostrar Retícula</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="" name="showGeographicLines">
+            <label class="form-check-label" for="showGeographicLines">Mostrar Líneas Geográficas</label>
+        </div>
+        <div class="form-group mt-2">
+            <label class="mb-0" for="minGridDistanceMeters">Mínimo DX/DY en Metros</label>
+            <input class="form-control form-control-sm" type="number" value="" name="minGridDistanceMeters">
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="" name="allowDifferentDxDy">
+            <label class="form-check-label" for="showGeographicLines">Permitir valores diferentes de DX y DY</label>
+        </div>
+    </div>
+    <div class="leaflet-sidebar-pane-bottom">
+        <button id="reset-settings" type="button" class="btn btn-danger btn-sm" title="Restablece la configuración a sus valores predeterminados">Restablecer</button>
+    </div>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="message-box-dialog" class="modal fade" role="dialog">
+    <div class="modal-dialog  modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-circle text-danger"></i>
+                    <span class="ml-1"></span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="message-box-text"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-box-dialog-templates" style="display: none;">
+    <div template="global-error">
+        <div class="global-error">
+            <p>
+                El Asistente de Dominios WRF encontró un error inesperado. Para ayudar a mejorar esta herramienta, por favor, cree un <a href="https://github.com/JiriRichter/WRFDomainWizard/issues" target="_blank">problema en GitHub</a> utilizando el formulario a continuación.
+            </p>
+            <form class="needs-validation" novalidate>
+                <div class="form-group">
+                    <h6>Error:</h6>
+                    <textarea name="error-details" class="form-control" readonly></textarea>
+                </div>
+                <div class="form-group">
+                    <h6>[Requerido] Pasos para Reproducir:</h6>
+                    <textarea name="repro-steps" class="form-control" required placeholder="Pasos para reproducir el problema" minlength="10"></textarea>
+                    <div class="invalid-feedback">
+                        Por favor proporcione los pasos para reproducir el problema.
+                    </div>
+                </div>
+            </form>
+            <a id="create-github-issue" class="btn btn-primary my-2" href="#" role="button" target="_blank">Crear Problema</a>
+        </div>
+    </div>
+</div>
+    <div id="geog-data-res-dialog" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header justify-content-between">
+                <div>
+                    <h5 id="geog-title" class="modal-title">geog_data_res</h5>
+                </div>
+                <div style="display:flex">
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text all-domains">version WRF</span>
+                        </div>
+                        <select class="form-control"></select>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body" style="position: center">
+                <input id="geog-data-res" type="text" class="form-control form-control-sm mb-2" disabled value="default" />
+                <table class="geog-categories">
+                    <thead><tr><th>Categoría</th><th>Valor</th><th>Predeterminado</th><th>Nombre archivo</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div>
+                    <i class="fas fa-folder-open mr-1"></i><a href="http://www2.mmm.ucar.edu/wrf/src/wps_files/" target="_blank">http://www2.mmm.ucar.edu/wrf/src/wps_files/</a>
+                </div>
+                <div>
+                    <button id="button-geog-save" type="button" class="btn btn-primary btn-sm" data-dismiss="modal">Guardar</button>
+                    <button id="button-geog-reset" type="button" class="btn btn-primary btn-sm">Restablecer</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <div id="wps-save-dialog" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">namelist.wps</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="position: center">
+                <textarea class="form-control resize-none font-namelist"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="button-download" type="button" class="btn btn-primary btn-sm" data-dismiss="modal"><i class="fas fa-download mr-1"></i>Descargar</button>
+                <button id="button-copy" type="button" class="btn btn-primary btn-sm"><i class="fas fa-copy mr-1"></i>Copiar</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <div id="capture-image-dialog" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-body d-flex">
+                <div class="m-auto">Capturando imagen <i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+   <div id="namelist-input-dialog" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-fullscreen" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                    <span class="navbar-brand">namelist.input</span>
+
+                    <ul class="navbar-nav">
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Ver</a>
+                            <div class="dropdown-menu dropdown-namelist-input-view" aria-labelledby="dropdown-view">
+                                <h6 class="dropdown-header">Grupos</h6>
+                                <a id="view-group-collapse-all" class="dropdown-item dropdown-selected" href="#"><i class="fas fa-check"></i><span class="ml-1">Contraer Todos</span></a>
+                                <a id="view-group-expand-all" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Expandir Todos</span></a>
+                                <a id="view-group-show-unset" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Mostrar No Establecidos</span></a>
+                                <a id="view-group-hide-unset" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Ocultar No Establecidos</span></a>
+                                <div class="dropdown-divider"></div>
+                                <h6 class="dropdown-header">Variables</h6>
+                                <a id="view-variables-show-unset" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Mostrar No Establecidas</span></a>
+                                <a id="view-variables-hide-unset" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Ocultar No Establecidas</span></a>
+                                <div class="dropdown-divider"></div>
+                                <h6 class="dropdown-header">Vistas</h6>
+                                <a id="view-all" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Todo</span></a>
+                                <a id="view-compact" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Compacto</span></a>
+                                <a id="view-min" class="dropdown-item" href="#"><i class="fas fa-check"></i><span class="ml-1">Minimizado</span></a>
+                            </div>
+                        </li>
+
+                    </ul>
+
+                    <span class="navbar-text mr-1">Zona Horaria:</span>
+                    <form class="form-inline">
+                        <select class="selectpicker" aria-label="Zona Horaria" id="select-timezone" data-live-search="true"></select>
+                    </form>
+
+                    <span class="navbar-text mr-1 ml-2">Ir A:</span>
+                    <form class="form-inline">
+                        <button class="btn btn-sm btn-outline-secondary" id="go-to-top" type="button" title="Ir al Principio"><i class="fas fa-angle-double-up"></i></button>
+                        <select class="" aria-label="Grupo" id="go-to-group" data-live-search="true" title="Grupo"></select>
+                        <select class="" aria-label="Grupo" id="go-to-variable" data-live-search="true" title="Variable"></select>
+                    </form>
+
+                </nav>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+
+                <ul class="nav nav-tabs" id="namelist-input-dialog-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active" id="tab-namelist-input-editor" data-toggle="tab" data-target="#pane-namelist-input-editor" type="button" role="tab" aria-controls="pane-namelist-input-editor" aria-selected="true">Editor</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-namelist-input-text" data-toggle="tab" data-target="#pane-namelist-input-text" type="button" role="tab" aria-controls="pane-namelist-input-text" aria-selected="false">Texto</button>
+                      </li>
+                    <li class="nav-item" role="presentation" style="display: none;">
+                      <button class="nav-link" id="tab-namelist-input-errors" data-toggle="tab" data-target="#pane-namelist-input-errors" type="button" role="tab" aria-controls="pane-namelist-input-errors" aria-selected="false">Errores</button>
+                    </li>
+                    <li class="nav-item" role="presentation" style="display: none;">
+                        <button class="nav-link" id="tab-namelist-input-original" data-toggle="tab" data-target="#pane-namelist-input-original" type="button" role="tab" aria-controls="pane-namelist-input-original" aria-selected="false">Original</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-namelist-input-info" data-toggle="tab" data-target="#pane-namelist-input-info" type="button" role="tab" aria-controls="pane-namelist-input-info" aria-selected="false">Documentación</button>
+                      </li>
+                  </ul>
+                
+                <div class="tab-content" id="namelist-input-dialog-tab-content">
+                    <div class="tab-pane fade show active" id="pane-namelist-input-editor" role="tabpanel" aria-labelledby="tab-namelist-input-editor">
+                        <div id="namelist-input-container" class="namelist-input-editor"></div>
+                    </div>
+                    <div class="tab-pane fade" id="pane-namelist-input-text" role="namelist-input-text" aria-labelledby="tab-namelist-input-text">
+                        <textarea class="form-control font-namelist resize-none" readonly></textarea>
+                    </div>
+                    <div class="tab-pane fade" id="pane-namelist-input-errors" role="namelist-input-errors" aria-labelledby="tab-namelist-input-errors">
+                        <div class="alert alert-info" role="alert">
+                            Una lista de error(es) encontrados al abrir un archivo namelist.input. Un error puede ocurrir, por ejemplo, cuando el archivo no está formateado correctamente o contiene variables no reconocidas. Para ayudar a mejorar esta herramienta, por favor, considere reportar falsos positivos a través de los <a href="https://github.com/JiriRichter/WRFDomainWizard/issues" target="_blank">problemas del proyecto en GitHub</a>.
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-exclamation-circle text-danger"></i>
+                                <span class="ml-1">Error</span>
+                            </li>
+                          </ul>
+                    </div>
+                    <div class="tab-pane fade" id="pane-namelist-input-original" role="namelist-input-original" aria-labelledby="tab-namelist-input-original">
+                        <textarea class="form-control font-namelist resize-none" readonly></textarea>
+                    </div>
+                    <div class="tab-pane fade" id="pane-namelist-input-info" role="namelist-input-info" aria-labelledby="tab-namelist-input-info">
+                        <div class="container">
+                            <div class="my-2">
+                                <h5>Guía de Usuarios de WRF</h5>
+                                <div class="list-group">
+                                    <a href="https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/namelist_variables.html" class="list-group-item list-group-item-action" target="_blank">Variables del Namelist</a>
+                                </div>
+                            </div>
+                            <div class="my-2">
+                                <h5>GitHub: wrf-model/WRF</h5>
+                                <div class="list-group">
+                                    <a href="https://github.com/wrf-model/WRF/tree/master/Registry" class="list-group-item list-group-item-action" target="_blank">Archivos del Registro</a>
+                                    <a href="https://github.com/wrf-model/WRF/blob/master/run/README.namelist" class="list-group-item list-group-item-action" target="_blank">run/README.namelist</a>
+                                    <a href="https://github.com/wrf-model/WRF/blob/master/test/em_real/examples.namelist" class="list-group-item list-group-item-action" target="_blank">test/em_real/examples.namelist</a>
+                                </div>
+                            </div>
+                          </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button id="button-save" type="button" class="btn btn-primary btn-sm"><i class="far fa-save"></i><span class="ml-1">Guardar</span></button>
+                <button id="button-copy" type="button" class="btn btn-primary btn-sm"><i class="fas fa-copy"></i><span class="ml-1">Copiar</span></button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="build/lib/jquery.min.js"></script>
+    <script src="build/lib/bootstrap.bundle.min.js"></script>
+    <script src="https://spin.js.org/spin.umd.js"></script>
+    <script src="build/lib/immediate.min.js"></script>
+    <script src="build/lib/proj4.js"></script>
+    <script src="build/lib/leaflet.js"></script>
+    <script src="build/lib/leaflet.spin.min.js"></script>
+    <script src="build/lib/leaflet-sidebar.min.js"></script>
+    <script src="build/lib/leaflet-providers.js"></script>
+    <script src="build/lib/Blob.js"></script>
+    <script src="build/lib/FileSaver.min.js"></script>
+    <script src="build/lib/html-to-image.js"></script>
+    <script src="build/lib/leaflet.textpath.js"></script>
+    <script src="build/lib/moment.min.js"></script>
+    <script src="build/lib/moment-timezone-with-data.min.js"></script>
+    <script src="build/lib/bootstrap-datetimepicker.min.js"></script>
+    <script src="build/lib/bootstrap-select.min.js"></script>
+
+    <script src="build/js/wrf-domain-wizard.js"></script>
+    <script>
+        WRF.enableGlobalErrorHandler();
+        var wizard = new WRF.DomainWizard({
+            div: $('div#map'),
+            jsonBaseUrl: 'build/json',
+            sampleBaseUrl: 'build/samples'
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,572 @@
+{
+  "configuration": {
+    "variables": [
+      {
+        "id": "sfcwind",
+        "title": "Vento Superficie",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "wind1500",
+        "title": "Vento 1500",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "wind2000",
+        "title": "Vento 2000",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "wind2500",
+        "title": "Vento 2500",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "wind3000",
+        "title": "Vento 3000",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "blwind",
+        "title": "Vento Medio",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "bltopwind",
+        "title": "Vento Altura",
+        "units": "Km/h",
+        "type": "plot"
+      },
+      {
+        "id": "wblmaxmin",
+        "title": "Converxencias",
+        "units": "m/s",
+        "type": "plot"
+      },
+      {
+        "id": "hglider",
+        "title": "Teito",
+        "units": "m",
+        "type": "plot"
+      },
+      {
+        "id": "wstar",
+        "title": "T\u00e9rmica",
+        "units": "m/s",
+        "type": "plot"
+      },
+      {
+        "id": "cape",
+        "title": "CAPE",
+        "units": "J/Kg",
+        "type": "plot"
+      },
+      {
+        "id": "zblcl",
+        "title": "Base cuberta",
+        "units": "m",
+        "type": "plot"
+      },
+      {
+        "id": "zsfclcl",
+        "title": "Base c\u00famulos",
+        "units": "m",
+        "type": "plot"
+      },
+      {
+        "id": "t2m",
+        "title": "Temperatura",
+        "units": "\u00b0C",
+        "type": "plot"
+      }
+    ],
+    "layers": [
+      {
+        "id": "lowfrac",
+        "title": "Nube baixa (%)",
+        "units": "%",
+        "type": "capa"
+      },
+      {
+        "id": "midfrac",
+        "title": "Nube media (%)",
+        "units": "%",
+        "type": "capa"
+      },
+      {
+        "id": "highfrac",
+        "title": "Nube alta (%)",
+        "units": "%",
+        "type": "capa"
+      },
+      {
+        "id": "blcloudpct",
+        "title": "Nube (%)",
+        "units": "%",
+        "type": "capa"
+      },
+      {
+        "id": "rain",
+        "title": "Choiva",
+        "units": "mm",
+        "type": "capa"
+      }
+    ],
+    "soundings": {
+      "d02": [
+        {
+          "id": "lapam\u00e1n",
+          "name": "Lapam\u00e1n",
+          "lat": 42.33145048629876,
+          "lon": -8.742886662507773
+        },
+        {
+          "id": "iroite",
+          "name": "Iroite",
+          "lat": 42.72905711868237,
+          "lon": -8.93105541844468
+        },
+        {
+          "id": "oia",
+          "name": "Oia",
+          "lat": 42.01850114710226,
+          "lon": -8.862854310416093
+        },
+        {
+          "id": "cerdal",
+          "name": "Cerdal",
+          "lat": 41.972960727032984,
+          "lon": -8.57818807308551
+        },
+        {
+          "id": "cerdedo",
+          "name": "Cerdedo",
+          "lat": 42.52199063960141,
+          "lon": -8.371996473903904
+        },
+        {
+          "id": "sanomedio",
+          "name": "Sanomedio",
+          "lat": 42.13370816756725,
+          "lon": -8.413337729561233
+        },
+        {
+          "id": "faro_este",
+          "name": "Faro Este",
+          "lat": 42.62260518005668,
+          "lon": -7.891296198825752
+        },
+        {
+          "id": "faro_oeste",
+          "name": "Faro Oeste",
+          "lat": 42.63958605763502,
+          "lon": -7.892782108371276
+        },
+        {
+          "id": "p\u00eda_p\u00e1xaro",
+          "name": "P\u00eda P\u00e1xaro",
+          "lat": 42.57975944190641,
+          "lon": -7.144216576552217
+        },
+        {
+          "id": "oribio",
+          "name": "Oribio",
+          "lat": 42.57975944190641,
+          "lon": -7.144216576552217
+        },
+        {
+          "id": "quiroga",
+          "name": "Quiroga",
+          "lat": 42.472329,
+          "lon": -7.23053
+        },
+        {
+          "id": "rodicio",
+          "name": "Rodicio",
+          "lat": 42.3143086068421,
+          "lon": -7.611492488151815
+        },
+        {
+          "id": "larouco_sur",
+          "name": "Larouco Sur",
+          "lat": 41.87979165479655,
+          "lon": -7.720959217928548
+        },
+        {
+          "id": "larouco_norte",
+          "name": "Larouco Norte",
+          "lat": 41.91606788529623,
+          "lon": -7.714377487134694
+        },
+        {
+          "id": "larouco_xironda",
+          "name": "Larouco Xironda",
+          "lat": 41.91090629589648,
+          "lon": -7.678773494459933
+        },
+        {
+          "id": "as_pontes",
+          "name": "As Pontes",
+          "lat": 43.46535,
+          "lon": -7.86647
+        },
+        {
+          "id": "mondo\u00f1edo",
+          "name": "Mondo\u00f1edo",
+          "lat": 43.435078,
+          "lon": -7.332442
+        },
+        {
+          "id": "monte_ventoso",
+          "name": "Monte Ventoso",
+          "lat": 43.480658,
+          "lon": -8.317847
+        },
+        {
+          "id": "caldelas",
+          "name": "Caldelas",
+          "lat": 41.65807,
+          "lon": -8.358992
+        },
+        {
+          "id": "gomide",
+          "name": "Gomide",
+          "lat": 41.72982,
+          "lon": -8.386233
+        },
+        {
+          "id": "leiranco",
+          "name": "Leiranco",
+          "lat": 41.729287,
+          "lon": -7.645552
+        },
+        {
+          "id": "senhora_da_gra\u00e7a",
+          "name": "Senhora da Gra\u00e7a",
+          "lat": 41.416415,
+          "lon": -7.91684
+        },
+        {
+          "id": "alv\u00e3o",
+          "name": "Alv\u00e3o",
+          "lat": 41.440215,
+          "lon": -7.726103
+        },
+        {
+          "id": "mirandela_w",
+          "name": "Mirandela W",
+          "lat": 41.469207,
+          "lon": -7.333885
+        },
+        {
+          "id": "bornes",
+          "name": "Bornes",
+          "lat": 41.464031,
+          "lon": -6.963767
+        },
+        {
+          "id": "relleno",
+          "name": "Relleno",
+          "lat": 42.41253266,
+          "lon": -8.8650235
+        },
+        {
+          "id": "xiabre",
+          "name": "Xiabre",
+          "lat": 42.63169509901904,
+          "lon": -8.698931213941316
+        }
+      ],
+      "d01": []
+    },
+    "cities": [
+      {
+        "name": "Ourense",
+        "lat": 42.344235631355154,
+        "lon": -7.867593913393807
+      },
+      {
+        "name": "Xinzo",
+        "lat": 42.06315957524415,
+        "lon": -7.726048479735918
+      },
+      {
+        "name": "Montealegre",
+        "lat": 41.8272557853786,
+        "lon": -7.7881982447245335
+      },
+      {
+        "name": "Chaves",
+        "lat": 41.74276748731619,
+        "lon": -7.473788009191289
+      },
+      {
+        "name": "Monforte",
+        "lat": 42.520563579790526,
+        "lon": -7.5147162890694865
+      },
+      {
+        "name": "Sarria",
+        "lat": 42.77919919701137,
+        "lon": -7.412301661645313
+      },
+      {
+        "name": "Ver\u00edn",
+        "lat": 41.93926557925728,
+        "lon": -7.433798440975221
+      },
+      {
+        "name": "A R\u00faa",
+        "lat": 42.395118025810454,
+        "lon": -7.1143318813949366
+      }
+    ],
+    "peaks": [
+      {
+        "name": "Manzaneda",
+        "lat": 42.25859271276444,
+        "lon": -7.301276246312062
+      }
+    ],
+    "takeoffs": [
+      {
+        "name": "Lapam\u00e1n",
+        "lat": 42.33145048629876,
+        "lon": -8.742886662507773
+      },
+      {
+        "name": "Iroite",
+        "lat": 42.72905711868237,
+        "lon": -8.93105541844468
+      },
+      {
+        "name": "Oia",
+        "lat": 42.01850114710226,
+        "lon": -8.862854310416093
+      },
+      {
+        "name": "Cerdal",
+        "lat": 41.972960727032984,
+        "lon": -8.57818807308551
+      },
+      {
+        "name": "Cerdedo",
+        "lat": 42.52199063960141,
+        "lon": -8.371996473903904
+      },
+      {
+        "name": "Sanomedio",
+        "lat": 42.13370816756725,
+        "lon": -8.413337729561233
+      },
+      {
+        "name": "Faro Este",
+        "lat": 42.62260518005668,
+        "lon": -7.891296198825752
+      },
+      {
+        "name": "Faro Oeste",
+        "lat": 42.63958605763502,
+        "lon": -7.892782108371276
+      },
+      {
+        "name": "P\u00eda P\u00e1xaro",
+        "lat": 42.57975944190641,
+        "lon": -7.144216576552217
+      },
+      {
+        "name": "Oribio",
+        "lat": 42.57975944190641,
+        "lon": -7.144216576552217
+      },
+      {
+        "name": "Quiroga",
+        "lat": 42.472329,
+        "lon": -7.23053
+      },
+      {
+        "name": "Rodicio",
+        "lat": 42.3143086068421,
+        "lon": -7.611492488151815
+      },
+      {
+        "name": "Larouco Sur",
+        "lat": 41.87979165479655,
+        "lon": -7.720959217928548
+      },
+      {
+        "name": "Larouco Norte",
+        "lat": 41.91606788529623,
+        "lon": -7.714377487134694
+      },
+      {
+        "name": "Larouco Xironda",
+        "lat": 41.91090629589648,
+        "lon": -7.678773494459933
+      },
+      {
+        "name": "As Pontes",
+        "lat": 43.46535,
+        "lon": -7.86647
+      },
+      {
+        "name": "Mondo\u00f1edo",
+        "lat": 43.435078,
+        "lon": -7.332442
+      },
+      {
+        "name": "Monte Ventoso",
+        "lat": 43.480658,
+        "lon": -8.317847
+      },
+      {
+        "name": "Caldelas",
+        "lat": 41.65807,
+        "lon": -8.358992
+      },
+      {
+        "name": "Gomide",
+        "lat": 41.72982,
+        "lon": -8.386233
+      },
+      {
+        "name": "Leiranco",
+        "lat": 41.729287,
+        "lon": -7.645552
+      },
+      {
+        "name": "Senhora da Gra\u00e7a",
+        "lat": 41.416415,
+        "lon": -7.91684
+      },
+      {
+        "name": "Alv\u00e3o",
+        "lat": 41.440215,
+        "lon": -7.726103
+      },
+      {
+        "name": "Mirandela W",
+        "lat": 41.469207,
+        "lon": -7.333885
+      },
+      {
+        "name": "Bornes",
+        "lat": 41.464031,
+        "lon": -6.963767
+      },
+      {
+        "name": "Relleno",
+        "lat": 42.41253266,
+        "lon": -8.8650235
+      },
+      {
+        "name": "Xiabre",
+        "lat": 42.63169509901904,
+        "lon": -8.698931213941316
+      }
+    ],
+    "domain_bounds": {
+      "d01": {
+        "left": -10.686370123731903,
+        "right": -4.234682345002101,
+        "bottom": 40.04074596293099,
+        "top": 44.83493658159184
+      },
+      "d02": {
+        "left": -9.384206026389341,
+        "right": -6.011283888113855,
+        "bottom": 41.41753080429197,
+        "top": 43.847552195435476
+      }
+    }
+  },
+  "domains": [
+    "d01",
+    "d02"
+  ],
+  "dataset_dates": {
+    "latest": [
+      "2026-05-07",
+      "2026-05-06",
+      "2026-05-05"
+    ],
+    "archive": [
+      "2026-05-04",
+      "2026-05-03"
+    ]
+  },
+  "hours": {
+    "2026-05-07": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "2026-05-06": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "2026-05-05": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "2026-05-04": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "2026-05-03": [
+      18,
+      19
+    ]
+  },
+  "last_updated": "2026-05-05 10:34:22",
+  "base_path": "PLOTS/Galicia"
+}

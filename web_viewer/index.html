@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="gl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meteonube</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h2>⛅ Meteonube</h2>
+                <div class="subtitle" id="last-updated">Cargando...</div>
+            </div>
+            <!-- Stations (Hidden by default) -->
+            <div class="control-group hidden" id="station-group">
+                <label>Estación</label>
+                <select id="station-selector"></select>
+            </div>
+
+            <!-- Overlays -->
+            <div class="control-group" id="overlays-group">
+                <label>Capas Meteorolóxicas</label>
+                <div class="toggle-group" id="weather-layers">
+                    <!-- Dynamic Exclusive Toggles will be here -->
+                </div>
+
+                <div class="checkbox-list" style="margin-top: 0.5rem;">
+                    <label><input type="checkbox" id="toggle-soundings" checked>Despegues</label>
+                    <label style="margin-left: 15px; color: #a0a0a0; font-size: 0.9em;"><input type="checkbox" id="toggle-takeoffs-names">Nomes dos despegues</label>
+                    <label><input type="checkbox" id="toggle-boundaries">Fronteiras</label>
+                    <label><input type="checkbox" id="toggle-provinces" checked>Provincias</label>
+                </div>
+
+                <!-- Opacity Control -->
+                <div class="opacity-container" style="margin-top: 1rem;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Opacidade
+                        Capas</label>
+                    <input type="range" id="opacity-slider" min="10" max="100" value="45" style="width: 100%;">
+                </div>
+            </div>
+
+
+            <div class="status-panel" id="status-panel"></div>
+        </div>
+
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <div class="viewer">
+            <button id="menu-toggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+            <!-- Controls -->
+            <div class="timeline-controls">
+                <button id="prev-btn">⏮</button>
+                <select id="date-selector" class="timeline-date"></select>
+                <span id="current-time-label" class="time-display">00:00</span>
+                <button id="next-btn">⏭</button>
+            </div>
+
+            <!-- Leaflet Map -->
+            <div id="map" class="map-viewer">
+                <div class="loader" id="loader"></div>
+                <div class="scale-container hidden" id="scale-container">
+                    <img id="img-scale" alt="Scale">
+                    <div id="dynamic-scale" class="dynamic-scale hidden"></div>
+                </div>
+                <!-- Map Tooltip (Generic for all variables) -->
+                <div id="wind-tooltip" class="wind-tooltip hidden">
+                    <div id="wt-station-name" class="wt-station-name hidden">Station Name</div>
+                    <div class="wt-name" id="wt-var-name">Variable</div>
+                    <div class="wt-val"><span id="wt-value">0</span> <span id="wt-units" class="wt-unit">--</span></div>
+                    <div class="wt-dir" id="wt-dir-box">
+                        <span id="wt-dir-arrow">↑</span>
+                        <span id="wt-dir-deg">0</span>°
+                    </div>
+                </div>
+            </div>
+
+
+
+
+        </div>
+    </div>
+
+    <!-- Special Views Overlay (Sounding/Meteogram) - Moved to Root for Isolation -->
+    <div id="overlay-container" class="overlay-container hidden">
+        <button id="close-modal" class="modal-close-btn" aria-label="Pechar ventá">✖</button>
+        <div class="modal-content">
+            <img id="img-sounding" class="overlay-image zoomable hidden" alt="Sounding">
+            <img id="img-meteogram" class="overlay-image zoomable hidden" alt="Meteogram">
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

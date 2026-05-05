@@ -1,0 +1,36 @@
+# Ignorar datos meteorológicos pesados y salidas de ejecución
+WRF_OUT/
+gfs.*
+met_em.*
+geo_em.*
+wrfout*
+wrfrst*
+
+# Ignorar archivos temporales y logs de ejecución
+*.log
+rsl.out.*
+rsl.error.*
+nohup.out
+
+# Ignorar ejecutables compilados
+*.exe
+
+# Ignorar cachés y entornos de Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# ==========================================
+# IGNORAR CÓDIGO FUENTE DE WRF/WPS Y LIBRERÍAS
+# ==========================================
+# Estas carpetas contienen miles de archivos Fortran, objetos compilados (.o, .mod)
+# y librerías de netCDF que bloquean por completo a Git.
+pre_process/WRF/
+pre_process/WPS/
+pre_process/dependencias_wrf/
+pre_process/Build_WRF/
+pre_process/TESTS/
+
+# Ignorar archivos de configuración sensibles
+config.ini
