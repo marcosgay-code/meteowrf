@@ -59,9 +59,8 @@ const els = {
     imgSounding: document.getElementById('img-sounding'),
     imgMeteogram: document.getElementById('img-meteogram'),
     imgScale: document.getElementById('img-scale'),
-    closeModalBtn: document.getElementById('close-modal'),
-
-    timeLabel: document.getElementById('current-time-label'),
+    dateSelector: document.getElementById('date-selector'),
+    timeSelector: document.getElementById('time-selector'),
     lastUpdated: document.getElementById('last-updated'),
 
     // Wind Tooltip
@@ -574,6 +573,16 @@ function setupControls() {
         updateImage();
     };
 
+    els.timeSelector.onchange = (e) => {
+        const selectedHour = parseInt(e.target.value, 10);
+        const index = state.availableHours.indexOf(selectedHour);
+        if (index !== -1) {
+            state.currentHourIndex = index;
+            state.currentHour = selectedHour;
+            updateImage();
+        }
+    };
+
     /*
     els.viewTypeSelector.onchange = (e) => {
         state.viewType = e.target.value;
@@ -775,10 +784,15 @@ function setupControls() {
     updateModeVisibility();
 
     // Playback
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    if (prevBtn) prevBtn.onclick = () => stepTime(-1);
-    if (nextBtn) nextBtn.onclick = () => stepTime(1);
+    const prevDayBtn = document.getElementById('prev-day-btn');
+    const nextDayBtn = document.getElementById('next-day-btn');
+    const prevTimeBtn = document.getElementById('prev-time-btn');
+    const nextTimeBtn = document.getElementById('next-time-btn');
+
+    if (prevDayBtn) prevDayBtn.onclick = () => stepDay(-1);
+    if (nextDayBtn) nextDayBtn.onclick = () => stepDay(1);
+    if (prevTimeBtn) prevTimeBtn.onclick = () => stepTime(-1);
+    if (nextTimeBtn) nextTimeBtn.onclick = () => stepTime(1);
 
     // Keyboard
     document.addEventListener('keydown', (e) => {
@@ -1076,18 +1090,28 @@ function updateAvailableHours() {
     // document.getElementById('time-min').textContent = getTimeString(hours[0]).substring(0, 2) + ":00" || "00:00";
     // document.getElementById('time-max').textContent = getTimeString(hours[hours.length - 1]).substring(0, 2) + ":00" || "23:00";
 
-    // Hide slider controls if single hour or less
+    els.timeSelector.innerHTML = '';
+    hours.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value = h;
+        const utcHour = getTimeString(h).substring(0, 2);
+        const dateStr = state.currentDate;
+        const isoStr = `${dateStr}T${utcHour}:00:00Z`;
+        const d = new Date(isoStr);
+        const localHour = String(d.getHours()).padStart(2, '0');
+        opt.textContent = `${localHour}:00`;
+        els.timeSelector.appendChild(opt);
+    });
+
     if (hours.length <= 1) {
-        // document.querySelector('.slider-container').classList.add('hidden');
-        document.getElementById('prev-btn').classList.add('hidden');
-        document.getElementById('next-btn').classList.add('hidden');
+        document.getElementById('prev-time-btn').classList.add('hidden');
+        document.getElementById('next-time-btn').classList.add('hidden');
     } else {
-        // document.querySelector('.slider-container').classList.remove('hidden');
-        document.getElementById('prev-btn').classList.remove('hidden');
-        document.getElementById('next-btn').classList.remove('hidden');
+        document.getElementById('prev-time-btn').classList.remove('hidden');
+        document.getElementById('next-time-btn').classList.remove('hidden');
     }
 
-    updateTimeLabel();
+    updateTimeSelectorUI();
 }
 
 /*
@@ -1555,21 +1579,37 @@ function toggleLayer(imgEl, show, src) {
 
 // --- Time & Animation ---
 
-function updateTimeLabel() {
-    const utcHour = getTimeString(state.currentHour).substring(0, 2);
+function updateTimeSelectorUI() {
+    if (els.timeSelector && state.currentHour !== null) {
+        els.timeSelector.value = state.currentHour;
+    }
+}
 
-    // Calculate Local Time (UTC + Offset)
-    // Assuming browser handles timezone conversion correctly if we construct a UTC date
-    // Or we can just use fixed logic if target is specific zone.
-    // Better: Construct Date object
-    const dateStr = state.currentDate; // YYYY-MM-DD
-    const isoStr = `${dateStr}T${utcHour}:00:00Z`;
-    const d = new Date(isoStr);
+function stepDay(dir) {
+    const dates = Array.from(els.dateSelector.options).map(o => o.value);
+    const currentDateIdx = dates.indexOf(state.currentDate);
+    
+    if (currentDateIdx === -1) return;
+    
+    const currentDt = new Date(state.currentDate);
+    const nextDt = new Date(currentDt);
+    if (dir > 0) {
+        nextDt.setDate(currentDt.getDate() + 1); // Día Siguiente
+    } else {
+        nextDt.setDate(currentDt.getDate() - 1); // Día Anterior
+    }
 
-    // Format Local: HH:00
-    const localHour = String(d.getHours()).padStart(2, '0');
+    const yyyy = nextDt.getFullYear();
+    const mm = String(nextDt.getMonth() + 1).padStart(2, '0');
+    const dd = String(nextDt.getDate()).padStart(2, '0');
+    const nextDateStr = `${yyyy}-${mm}-${dd}`;
 
-    els.timeLabel.textContent = `${localHour}:00`;
+    if (dates.includes(nextDateStr)) {
+        state.currentDate = nextDateStr;
+        els.dateSelector.value = nextDateStr;
+        updateAvailableHours();
+        updateImage();
+    }
 }
 
 function stepTime(dir) {
@@ -1639,7 +1679,7 @@ function stepTime(dir) {
         state.currentHour = state.availableHours[newIdx];
     }
 
-    updateTimeLabel();
+    updateTimeSelectorUI();
     updateImage();
 }
 

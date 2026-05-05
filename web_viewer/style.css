@@ -379,18 +379,23 @@ select:focus {
     background-color: rgba(31, 41, 55, 0.95);
     padding: 0.25rem 1rem;
     display: flex;
+    flex-wrap: wrap; /* Permite que en móviles se coloquen uno encima de otro si no caben */
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 1rem; /* Margen mayor entre el grupo de días y el de horas */
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
-    /* Ensure z-index works and stays above map layers while scrolling */
     z-index: 1000;
 }
 
-button#prev-btn,
-button#next-btn {
+.control-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.time-nav-btn {
     background: var(--bg-panel);
     border: 1px solid var(--border);
     color: var(--text-primary);
@@ -403,43 +408,36 @@ button#next-btn {
     cursor: pointer;
     font-size: 1rem;
     transition: background 0.2s;
+    padding: 0; 
 }
 
-button:hover {
+button.time-nav-btn:hover {
     background-color: var(--border);
 }
 
-.timeline-date {
+.timeline-date,
+.timeline-time {
     background-color: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 0.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.1rem 0.2rem;
     cursor: pointer;
     outline: none;
     appearance: none;
-    /* Remove default arrow in some browsers if desired, or keep */
-    /* If keeping arrow, maybe style it white? browsers are tricky with select arrows */
     -moz-appearance: none;
     -webkit-appearance: none;
     text-align: center;
     width: auto;
     max-width: 120px;
+    font-variant-numeric: tabular-nums;
 }
 
-.timeline-date:hover {
+.timeline-date:hover,
+.timeline-time:hover {
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
-}
-
-.time-display {
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 0.85rem;
-    min-width: 50px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
 }
 
 .slider-container {
