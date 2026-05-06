@@ -717,6 +717,22 @@ while true; do
         
             for ready_file in "${flags[@]}"; do
                 ready_filename=$(basename "$ready_file")
+                
+                # --- NUEVA LÓGICA DE EXCLUSIÓN ---
+                # 1. Leer dominios a omitir desde la configuración
+                SKIP_DOMAINS=$(get_config_value "processing" "skip_domains")
+                
+                # 2. Extraer el identificador del dominio (ej. d01)
+                domain_str=$(echo "$ready_filename" | grep -o 'd[0-9][0-9]')
+
+                # 3. Si el dominio actual está en la lista de exclusión, saltar
+                if [[ "$SKIP_DOMAINS" == *"$domain_str"* ]]; then
+                    rm -f "$ready_file" # Borramos el semáforo para que no se acumule
+                    log "Saltando generación de imágenes para el dominio excluido: $domain_str"
+                    continue # Saltamos a analizar el siguiente archivo
+                fi
+                # --- FIN NUEVA LÓGICA ---
+
                 # Derivar el nombre del archivo wrfout correspondiente
                 wrfout_filename=$(echo "$ready_filename" | sed 's/^wrfoutReady_/wrfout_/')
                 wrfout_file="$WRFOUT_FOLDER/$wrfout_filename"
