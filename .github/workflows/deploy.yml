@@ -1,0 +1,29 @@
+name: Despliegue Frontend Automático
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # Solo activar el robot si hay cambios en la carpeta de la web
+      - 'web_viewer/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  deploy:
+    name: Despliegue a servidor Meteonube
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Descargar código desde GitHub
+        uses: actions/checkout@v4
+
+      - name: 🚀 Sincronizar servidor web por SFTP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          source: "web_viewer/*"
+          target: "${{ secrets.REMOTE_PATH }}"
+          strip_components: 1
