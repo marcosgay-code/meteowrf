@@ -66,11 +66,10 @@ pre_process/
   
 configs
   ├── soundings_d0*.csv
-  ├── cities.csv
   ├── takeoffs.csv
   ├── stations_d0*.csv   # Definición de balizas reales web
   ├── plots.ini          # variables color scales
-  └── zooms.ini          # Regions limits to frame plots
+  
 
 pos_process/
   ├── run_out.sh
@@ -123,7 +122,7 @@ pos_process/
 web_viewer/
   ├── index.html
   ├── style.css
-  └── script.js
+  └── app.js
   ├── run_server.sh
 ```
 
@@ -153,7 +152,7 @@ Se ha implementado un subsistema robusto para comparar las predicciones del mode
 
 1.  **Descarga Periódica (Cron de Estaciones)**: Desacoplado de la simulación continua, se recomienda configurar una tarea recurrente rápida en *crontab* programada para inyectar telemetría real al pos-proceso cada hora en punto:
     ```bash
-    5 * * * * /home/zalo/meteo/pos_process/stations_downloader.sh
+    5 * * * * /home/meteo/meteowrf/pos_process/stations_downloader.sh
     ```
     *   Este orquestador secundario no solo ejecuta rígidamente la descarga; utiliza sistemas de bloqueo (lock files) internos que garantizan que nunca se solapen descargas estancadas de forma simultánea, y dispara automáticamente por background al extractor `download_stations_data.py`. Estas tareas se conectan a APIs externas reales (como OpenWeatherMap) logrando descargar y acumular las observaciones instrumentales reales.
 
@@ -173,9 +172,8 @@ Se ha implementado un subsistema robusto para comparar las predicciones del mode
 El proyecto es altamente configurable sin tocar código. Todos los archivos de configuración y metadatos pueden editarse **independientemente** y de forma manual (con un editor de textos plano), pero también te puedes servir del asistente visual **`edit_config.py`** para modificarlos en su interfaz y mapa integrado:
 - **`config.ini`**: Archivo maestro autogenerado que controla el flujo global, horas de proceso, cronogramas de retención, límites geográficos y el servidor FTP.
 - **`configs/plots.ini`**: Define qué variables plotear, sus rangos (vmin, vmax), conversiones de unidades y mapas de colores.
-- **`configs/zooms.ini`**: Define sub-regiones geográficas para generar mapas de detalle. Actúa también como fuente semántica para descubrir puntos de interés (estaciones) si no están explícitamente definidos.
 - **`configs/stations_d*.csv`**: Listas de estaciones para validación. Pueden ser editados manualmente o generados/curados automáticamente por el sistema.
-- **`configs/*.csv`**: Otras listas de puntos de interés (ciudades, puntos para sondeos).
+- **`configs/*.csv`**: Otras listas de puntos de interés (como puntos para sondeos).
 
 ## 7. Observaciones Técnicas
 - **Lenguaje Mixto**: Python para la lógica y orquestación, Fortran (vía f2py) para cálculo numérico intensivo.
