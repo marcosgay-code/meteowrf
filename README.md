@@ -35,9 +35,9 @@ Para asegurar un entorno de producción robusto, se deben seguir las siguientes 
 1.  **Entorno**: Uso de **`pre_install.sh`** y **`pos_install.sh`** para compilar el modelo de predicción y crear un entorno Python estandarizado. No requiere Conda. Asegurar que los scripts se completen sin errores.
 2.  **Punto de Entrada Primario (Cron)**: El sistema general se arranca programando una tarea iterativa en *crontab* del script principal del modelo:
     ```bash
-    00 5,17 * * * MPI_PROCS=4 INT_SEC=3600 /home/meteo/meteowrf/pre_process/run_wrf.sh 72 >> /home/zalo/meteo/pre_process/run_wrf.log 2>&1
+    00 5,17 * * * MPI_PROCS=4 INT_SEC=3600 /home/meteo/meteowrf/pre_process/run_wrf.sh 72 >> /home/meteo/meteowrf/pre_process/run_wrf.log 2>&1
     ```
-    *   **`La ruta (/home/zalo/meteo)`**: Indica la ruta absoluta al directorio de instalación elegido libremente durante el despliegue. Este valor se almacena en tu `config.ini` principal, bajo la variable `[paths] run_dir = /local/path`.
+    *   **`La ruta (/home/meteo/meteowrf)`**: Indica la ruta absoluta al directorio de instalación elegido libremente durante el despliegue. Este valor se almacena en tu `config.ini` principal, bajo la variable `[paths] run_dir = /local/path`.
     *   **`MPI_PROCS=4`**: Opcional. Sobrescribe el valor configurado internamente en `run_wrf.sh` (defecto: `1`) forzando la computación paralela con 4 núcleos en MPI.
     *   **`INT_SEC=3600`**: Opcional. Sobrescribe el intervalo heredado de `namelist.wps` dictaminando una inyección de condiciones fronterizas de 3600 segundos (1 hora).
     *   **`72`**: Opcional. Argumento posicional numérico para programar un horizonte explícito (ej: predecir 72h hacia el futuro omitiendo las 24h por defecto).
