@@ -446,7 +446,8 @@ function updateMarkers() {
                     radius: 25,
                     color: 'transparent',
                     fillColor: 'transparent',
-                    interactive: true
+                    interactive: true,
+                    bubblingMouseEvents: false // <-- Evita que el clic pase al mapa de fondo
                 }).addTo(state.map);
 
                 if (state.layers.takeoffs_names) {
