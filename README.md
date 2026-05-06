@@ -112,12 +112,9 @@ pos_process/
   │       Helper functions: parse file names for domain/date,
   │       load config files (config.ini universal config object).
   ├── plots/
-  │   ├── web.py             (Manejador de geometría y generación capa web)
-  │   ├── geography.py       (Cartopy y Matplotlib details para plots)
+  │   ├── colormaps.py       (Definición de escalas de color y rangos)
+  │   ├── sounding.py        (Generación de diagramas termodinámicos Skew-T)
   │   └── ... 
-  └── terrain_tif/
-      ├── gebco_08_rev_elev_B1_grey_geo.tif
-      └── ...
 
 web_viewer/
   ├── index.html
@@ -143,7 +140,7 @@ web_viewer/
 
 ### C. Visualización (`plots/`)
 El paquete `plots` está modularizado:
-- **`web.py`**: Genera los mapas escalares (temperatura, nubes) y vectoriales (viento). Utiliza `cartopy` para proyecciones geográficas.
+- **`colormaps.py`**: Define las escalas de color personalizadas y los rangos para cada variable.
 - **`sounding.py`**: Genera diagramas Skew-T utilizando `metpy`.
 - **`meteogram.py`**: Genera series temporales para puntos específicos.
 
