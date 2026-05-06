@@ -38,3 +38,6 @@ pos_process/force_upload.sh
 
 # Archivos web generados dinámicamente
 web_viewer/manifest.json
+
+# Archivos de performance
+pos_process/logs/
