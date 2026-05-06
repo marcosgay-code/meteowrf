@@ -35,3 +35,6 @@ pre_process/TESTS/
 # Ignorar archivos de configuración sensibles
 config.ini
 pos_process/force_upload.sh
+
+# Archivos web generados dinámicamente
+web_viewer/manifest.json

@@ -1,6 +1,6 @@
 const state = {
     manifest: null,
-    currentDomain: 'd01',
+    currentDomain: 'd02',
     currentDate: null,
     currentHour: 0,
     currentHourIndex: 0,
@@ -62,6 +62,7 @@ const els = {
     dateSelector: document.getElementById('date-selector'),
     timeSelector: document.getElementById('time-selector'),
     lastUpdated: document.getElementById('last-updated'),
+    closeModalBtn: document.getElementById('close-modal'),
 
     // Wind Tooltip
     windTooltip: document.getElementById('wind-tooltip'),
@@ -380,36 +381,7 @@ function updateDisplayControl() {
 }
 
 function getDomainForView() {
-    if (!state.map) return 'd01';
-    if (!state.manifest || !state.manifest.configuration || !state.manifest.configuration.domain_bounds) {
-        const zoom = state.map.getZoom();
-        if (zoom >= 11) return 'd02';
-        if (zoom >= 5) return 'd01';
-        return null;
-    }
-    const db = state.manifest.configuration.domain_bounds;
-    const mapBounds = state.map.getBounds();
-
-    // Evaluate how much of the screen is covered by d02
-    if (db['d02']) {
-        const d02 = db['d02'];
-        const interLeft = Math.max(d02.left, mapBounds.getWest());
-        const interRight = Math.min(d02.right, mapBounds.getEast());
-        const interBottom = Math.max(d02.bottom, mapBounds.getSouth());
-        const interTop = Math.min(d02.top, mapBounds.getNorth());
-
-        if (interRight > interLeft && interTop > interBottom) {
-            const interArea = (interRight - interLeft) * (interTop - interBottom);
-            const mapArea = (mapBounds.getEast() - mapBounds.getWest()) * (mapBounds.getNorth() - mapBounds.getSouth());
-            const coverageRatio = interArea / mapArea;
-
-            // Switch to d02 if it covers at least 60% of the screen area
-            if (coverageRatio >= 0.98) {
-                return 'd02';
-            }
-        }
-    }
-    return 'd01';
+    return 'd02';
 }
 
 function setDomainInternal(dom) {

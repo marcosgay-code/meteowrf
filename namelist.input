@@ -1,19 +1,19 @@
 &time_control
  history_outname          = "/home/meteo/meteowrf/WRF_OUT/wrfout_d<domain>_<date>"
  run_days                 = 0
- run_hours                = 2
+ run_hours                = 13
  run_minutes              = 0,
  run_seconds              = 0,
  start_year               = 2026,2026
  start_month              = 05,05
- start_day                = 05,05
- start_hour               = 18,18
+ start_day                = 08,08
+ start_hour               = 06,06
  start_minute             = 00,   00,
  start_second             = 00,   00,
  end_year                 = 2026,2026
  end_month                = 05,05
- end_day                  = 05,05
- end_hour                 = 20,20
+ end_day                  = 08,08
+ end_hour                 = 19,19
  end_minute               = 00,   00,
  end_second               = 00,   00,
  interval_seconds         = 3600
