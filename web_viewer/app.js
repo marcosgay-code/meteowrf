@@ -438,7 +438,15 @@ function updateMarkers() {
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 1,
-                    zIndex: 1000
+                    interactive: false // Usamos el touchMarker para la interacción
+                }).addTo(state.map);
+
+                // Marcador invisible para ampliar masivamente la zona táctil (radio 25px)
+                const touchMarker = L.circleMarker([s.lat, s.lon], {
+                    radius: 25,
+                    color: 'transparent',
+                    fillColor: 'transparent',
+                    interactive: true
                 }).addTo(state.map);
 
                 if (state.layers.takeoffs_names) {
@@ -449,16 +457,17 @@ function updateMarkers() {
                     });
                 }
 
-                marker.on('click', (e) => {
+                touchMarker.on('click', (e) => {
                     els.windTooltip.classList.add('hidden');
                     if (e.originalEvent) e.originalEvent.stopPropagation();
+                    marker.openPopup();
                 });
 
-                marker.on('mouseover', (e) => {
+                touchMarker.on('mouseover', (e) => {
                     updateTooltip(e.latlng, s.name);
                 });
 
-                marker.on('mouseout', () => {
+                touchMarker.on('mouseout', () => {
                     updateTooltip(null);
                 });
 
@@ -489,6 +498,7 @@ function updateMarkers() {
                 });
 
                 state.markers.push(marker);
+                state.markers.push(touchMarker);
             }
         });
     }
