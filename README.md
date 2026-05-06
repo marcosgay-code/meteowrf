@@ -26,7 +26,7 @@ El despliegue está automatizado mediante dos scripts de instalación que config
     *   Instala el stack científico: `wrf-python`, `cartopy`, `matplotlib`, `netcdf4` (v1.6.5).
     *   Instala herramientas para la generación web como **Playwright**.
 
-El objetivo de esta integración de la arquitectura es permitir que el flujo de simulación avance de manera autónoma. Los archivos numéricos crudos (los `wrfout`) son leídos e interpretados por el `pos_process` para generar gráficos meteorológicos detallados (mapas, meteogramas y sondeos) orientados al vuelo libre (focalizados en variables de tipo "DrJack"). Finalmente, todo este compendio de imágenes y reportes queda automáticamente indexado y disponible para la consulta interactiva de los usuarios a través del `web_viewer`.
+El objetivo de esta integración de la arquitectura es permitir que el flujo de simulación avance de manera autónoma. Los archivos numéricos crudos (los `wrfout`) son leídos e interpretados por el `pos_process` para generar gráficos meteorológicos detallados (datos, meteogramas y sondeos) orientados al vuelo libre (focalizados en variables de tipo "DrJack"). Finalmente, todo este compendio de imágenes y reportes queda automáticamente indexado y disponible para la consulta interactiva de los usuarios a través del `web_viewer`.
 
 ## 2. Flujo de Trabajo Continuo (Continuous Running)
 
