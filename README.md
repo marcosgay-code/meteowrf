@@ -1,6 +1,6 @@
 # meteoWRF
 
-Para llevar a cabo la instalación, es necesario descomprimir el archivo `meteowrf.zip` en el directorio del usuario. Además, este usuario debe tener permisos de ejecución como administrador (`sudo usermod -aG sudo meteowrf`).
+Para llevar a cabo la instalación, es necesario descomprimir el archivo `meteowrf.zip` en el directorio del usuario o clonar este repositorio. Además, este usuario debe tener permisos de ejecución como administrador (`sudo usermod -aG sudo meteowrf`).
 Al descomprimir el archivo, se crearán de forma automática las carpetas necesarias para la instalación del sistema (`pre_process`, `pos_process`, `web_viewer` y `configs`).
 
 Este documento detalla la arquitectura, estructura y flujo de trabajo del proyecto `meteoWRF`, diseñado para el modelo meteorológico WRF.
