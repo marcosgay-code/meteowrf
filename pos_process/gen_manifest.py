@@ -406,7 +406,7 @@ def main():
         # OR just use the folder name and its parent.
         
         # Actually simplest is: use the last two parts of the path? 
-        # e.g. /home/zalo/meteo/PLOTS/Galicia -> PLOTS/Galicia
+        # e.g. /home/meteo/meteowrf/PLOTS/Galicia -> PLOTS/Galicia
         
         p = Path(plots_folder)
         if len(p.parts) >= 2:

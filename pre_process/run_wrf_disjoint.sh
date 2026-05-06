@@ -10,7 +10,7 @@ set -o pipefail # Si un comando falla en una tubería (pipe), detiene el script.
 # Configuración de cron
 # crontab -e
 # TZ=UTC
-# 0 5,11,17,23 * * * MPI_PROCS=4 /home/zalo/meteowrf/pre_process/run_wrf.sh 24 >> /home/zalo/meteowrf/pre_process/run_wrf.log 2>&1
+# 0 5,11,17,23 * * * MPI_PROCS=4 /home/meteo/meteowrf/pre_process/run_wrf.sh 24 >> /home/meteo/meteowrf/pre_process/run_wrf.log 2>&1
 
 show_usage() {
     local max_procs_info=$(nproc 2>/dev/null)

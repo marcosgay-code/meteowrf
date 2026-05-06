@@ -202,7 +202,7 @@ Para ello, el proyecto dispone de un script de control dedicado que evalúa auto
 
 **Usando el script de control:**
 ```bash
-cd /home/zalo/meteo/web_viewer
+cd /home/meteo/meteowrf/web_viewer
 ./run_server.sh start
 ```
 *   **Acceso**: Abrir `http://localhost:8000` en el navegador.
