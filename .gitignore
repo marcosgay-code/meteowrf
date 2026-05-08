@@ -46,3 +46,4 @@ pos_process/logs/
 pos_process/drjack_num.f90
 pos_process/.drjack_num.f90
 *.so
+*.err
