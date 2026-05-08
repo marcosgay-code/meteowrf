@@ -41,3 +41,8 @@ web_viewer/manifest.json
 
 # Archivos de performance
 pos_process/logs/
+
+# Ignorar código fuente y caché de DrJack
+pos_process/drjack_num.f90
+pos_process/.drjack_num.f90
+*.so
