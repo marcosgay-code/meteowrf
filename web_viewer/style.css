@@ -876,3 +876,8 @@ input[type=range] {
     color: var(--accent);
     margin-left: 4px;
 }
+
+/* Ocultar el indicador "Zoom | D02" del mapa */
+.zoom-domain-display {
+    display: none !important;
+}
