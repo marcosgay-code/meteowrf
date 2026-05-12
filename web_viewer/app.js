@@ -237,7 +237,10 @@ function initMap() {
         zoomControl: true,
         attributionControl: false,
         minZoom: 3,
-        maxZoom: 16
+        maxZoom: 16,
+        /** Botóns +/- do control: pasos intermedios (ex.: 8 → 8.5 → 9). Rueda/pinch tamén respectan zoomSnap. */
+        zoomSnap: 0.5,
+        zoomDelta: 0.5
     });
 
     // --- Base Layers Configuration ---
@@ -396,14 +399,14 @@ function initMap() {
     });
     new L.Control.VarSelector().addTo(state.map);
 
-    // Initial View: Start at Zoom 7 as requested
-    // Initial View: Start at Zoom 7 as requested
+    // Vista inicial: escritorio zoom 8; móvil/tablet (≤1024px, coma layout CSS) medio nivel menos → 7.5 (zoomSnap 0.5)
+    const initialZoom = (typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches) ? 7.5 : 8;
     const initialBounds = getDomainBounds();
     if (initialBounds) {
-        state.map.setView(initialBounds.getCenter(), 8);
+        state.map.setView(initialBounds.getCenter(), initialZoom);
     } else {
         // Fallback to Spain center
-        state.map.setView([40.4168, -3.7038], 8);
+        state.map.setView([40.4168, -3.7038], initialZoom);
     }
 
     // Create canvas layer for wind particles
