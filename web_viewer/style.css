@@ -30,7 +30,7 @@ body.has-modal {
 
 .app-container {
     display: grid;
-    grid-template-columns: 230px 1fr;
+    grid-template-columns: 380px 1fr;
     height: 100%;
 }
 
@@ -39,12 +39,11 @@ body.has-modal {
     box-sizing: border-box;
     background-color: var(--bg-panel);
     border-right: 1px solid var(--border);
-    padding: 1rem;
-    padding-bottom: 2rem;
-    /* Add extra room at the bottom for safety */
+    padding: 0.65rem;
+    padding-bottom: 0.65rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.45rem;
     overflow-y: auto;
 }
 
@@ -258,21 +257,103 @@ select:focus {
     }
 }
 
-/* Scale Bar */
+/* Scale Bar — ancho pantalla sen marcos no gradiente */
 .scale-container {
     position: absolute;
-    bottom: 25px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
     background: transparent;
     border: none;
     z-index: 1000;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.scale-bottom-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+    width: 100%;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Bundle só como columna compacta sen panel gris; mapa ocupando o máximo ó mapa */
+.scale-wrf-bundle {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+/* Actualizado + escala Leaflet na mesma liña; pegados ao bordo superior do gradiente */
+.scale-meta-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    margin: 0;
+    padding: 0 8px 0 10px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.last-updated-scale {
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.15;
+    color: rgba(243, 244, 246, 0.95);
+    text-align: left;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.55);
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scale-meta-row .last-updated-scale {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    pointer-events: auto;
+}
+
+.scale-meta-row .leaflet-scale-anchor {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+    width: auto;
+    max-width: 55%;
+    pointer-events: auto;
 }
 
 .scale-container.hidden {
-    display: none;
+    display: none !important;
 }
 
 #img-scale {
@@ -288,55 +369,48 @@ select:focus {
     object-fit: contain;
 }
 
-/* Dynamic Scale */
+/* Só gradiente a largo completo (sen unidades) */
 .dynamic-scale {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: rgba(31, 41, 55, 0.85);
-    border-radius: 8px;
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: block;
+    width: 100%;
+    flex: none;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border-radius: 0;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
     pointer-events: auto;
 }
 
-.scale-header {
-    min-width: 30px;
-    margin-right: 0;
-    text-align: left;
-}
-
-.scale-unit {
-    color: var(--text-secondary);
-    font-size: 0.65rem;
-    font-weight: 800;
-}
-
-.scale-body {
-    display: flex;
-    align-items: center;
-    width: 350px;
-    max-width: 75vw;
+.scale-body.scale-body--full {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .scale-gradient-container {
-    height: 24px;
+    position: relative;
+    height: 28px;
     width: 100%;
-    background: #111;
-    border-radius: 12px;
-    padding: 2px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.5);
     overflow: hidden;
 }
 
 .scale-gradient {
     width: 100%;
     height: 100%;
-    border-radius: 10px;
+    border-radius: 0;
     position: relative;
 }
 
@@ -351,13 +425,38 @@ select:focus {
 
 .scale-labels-overlay span {
     position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    top: auto;
+    bottom: 0;
+    transform: translateX(-50%);
     color: #fff;
-    font-size: 0.5rem;
+    font-size: calc(0.54rem * 1.4);
     font-weight: 800;
     text-shadow: 0 0 3px #000, 1px 1px 2px #000;
     z-index: 10;
+}
+
+.leaflet-scale-anchor .leaflet-control-scale {
+    margin: 0 !important;
+    padding: 0 !important;
+    padding-bottom: 0 !important;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    line-height: 0;
+}
+
+.leaflet-scale-anchor .leaflet-control-scale-line {
+    margin: 0 !important;
+    padding: 0 !important;
+    border-width: 2px;
+    border-color: rgba(226, 232, 240, 0.95);
+    border-bottom-style: none;
+    border-bottom-width: 0;
+}
+
+.scale-unit {
+    display: none;
 }
 
 /* Data Layers Transparency */
@@ -383,10 +482,26 @@ select:focus {
     align-items: center;
     justify-content: center;
     gap: 1rem; /* Margen mayor entre el grupo de días y el de horas */
-    border-bottom: 1px solid var(--border);
+    border-top: none;
+    border-bottom: none;
     position: sticky;
     top: 0;
     z-index: 1000;
+}
+
+/* Fila data/hora cun 🪂 integrado: mínimos espazo entre elementos */
+.timeline-controls.timeline-controls--compact {
+    gap: 2px;
+    row-gap: 2px;
+    column-gap: 2px;
+    padding: 0.2rem 0.35rem;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.timeline-controls.timeline-controls--compact > .control-group-inline {
+    gap: 2px;
+    flex-shrink: 0;
 }
 
 .control-group-inline {
@@ -413,6 +528,39 @@ select:focus {
 
 button.time-nav-btn:hover {
     background-color: var(--border);
+}
+
+.sounding-cycle-btn--blue {
+    background: rgba(37, 99, 235, 0.35);
+    border-color: #2563eb;
+    color: #dbeafe;
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
+}
+
+button.time-nav-btn.sounding-cycle-btn--blue:hover {
+    background: rgba(37, 99, 235, 0.5);
+}
+
+.sounding-cycle-btn--green {
+    background: rgba(22, 163, 74, 0.4);
+    border-color: #22c55e;
+    color: #f0fdf4;
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.5);
+}
+
+button.time-nav-btn.sounding-cycle-btn--green:hover {
+    background: rgba(22, 163, 74, 0.55);
+}
+
+.sounding-cycle-btn--off {
+    background: var(--bg-panel);
+    border-color: var(--border);
+    color: var(--text-secondary);
+    opacity: 0.75;
+}
+
+button.time-nav-btn.sounding-cycle-btn--off:hover {
+    opacity: 1;
 }
 
 .timeline-date,
@@ -462,11 +610,20 @@ input[type=range] {
 }
 
 .status-panel {
-    margin-top: auto;
+    margin-top: 0;
     font-size: 0.75rem;
     color: var(--text-secondary);
-    color: var(--text-secondary);
     word-break: break-all;
+}
+
+/* Pie de autoría: sin margin:auto (evita enorme hueco bajo botóns) nin liña divisoria engadida */
+.sidebar-attribution {
+    margin-top: 0.35rem;
+    padding: 0.35rem 0 0 0;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-align: center;
+    border-top: none;
 }
 
 .hidden {
@@ -880,4 +1037,169 @@ input[type=range] {
 /* Ocultar el indicador "Zoom | D02" del mapa */
 .zoom-domain-display {
     display: none !important;
+}
+
+/* Ocultar el viejo selector de variables del mapa */
+.var-selector-control { display: none !important; }
+
+/* Fila continua de botones */
+.sidebar-flow {
+    display: flex; flex-direction: row; flex-wrap: wrap;
+    align-items: flex-start; gap: 0.3rem;
+}
+.btn-cluster { display: contents; }
+
+/* Botón base */
+.btn-toggle {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 0.35rem; color: var(--text-primary);
+    font-size: 0.8rem; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none; white-space: nowrap; flex: 0 0 auto;
+    box-sizing: border-box; min-height: 30px;
+}
+.btn-toggle:hover { background: #2b3445; border-color: var(--accent); }
+.btn-toggle input[type="checkbox"], .btn-toggle input[type="radio"] { display: none; }
+.btn-toggle input[type="checkbox"]:checked + span, .btn-toggle.active { color: white; }
+.btn-toggle:has(input[type="checkbox"]:checked),
+.btn-toggle.active {
+    background: var(--accent); border-color: var(--accent);
+    color: white; font-weight: 600;
+}
+/* Lógica inversa para Bordes */
+.btn-toggle--inverse:has(input[type="checkbox"]:checked) {
+    background: var(--bg-panel); border-color: var(--border);
+    color: var(--text-primary); font-weight: normal;
+}
+.btn-toggle--inverse input[type="checkbox"]:checked + span { color: var(--text-primary); }
+.btn-toggle--inverse:has(input[type="checkbox"]:not(:checked)) {
+    background: var(--accent); border-color: var(--accent);
+    color: white; font-weight: 600;
+}
+.btn-toggle--inverse input[type="checkbox"]:not(:checked) + span { color: white; }
+
+/* Icono pequeño junto al texto */
+.btn-toggle .btn-icon {
+    width: 14px; height: 14px; object-fit: contain; filter: invert(1);
+}
+/* Botón solo-icono: icono más grande */
+.btn-toggle.icon-only { padding: 0.15rem 0.5rem; }
+.btn-toggle.icon-only .btn-icon { width: auto; height: 20px; }
+
+/* Slider de opacidad oculto por defecto */
+.opacity-container {
+    margin-top: 0.4rem;
+    display: none; flex-direction: column; gap: 0.25rem;
+}
+.opacity-container.show { display: flex; }
+#btn-opacity-toggle.active {
+    background: var(--accent); border-color: var(--accent); color: white;
+}
+.opacity-label { font-size: 0.75rem; color: var(--text-secondary); }
+#opacity-slider { width: 100%; }
+
+/* Etiqueta de variable activa sobre el mapa */
+.current-var-label {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    padding: 3px 10px; background: rgba(0,0,0,0.55); color: #fff;
+    font-size: 0.8rem; font-weight: 500; border-radius: 6px;
+    backdrop-filter: blur(3px); border: 1px solid rgba(255,255,255,0.1);
+    z-index: 900; pointer-events: none; white-space: nowrap;
+}
+.current-var-label.hidden { display: none; }
+
+/* Excluir btn-toggle de la regla genérica de labels */
+.control-group label:not(.btn-toggle) {
+    font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);
+}
+
+/* Responsive: sidebar como franja superior en móvil */
+@media (max-width: 1024px) {
+    .app-container {
+        display: flex; flex-direction: column;
+        grid-template-columns: none;
+        height: 100vh; height: 100dvh; overflow: hidden;
+    }
+    .sidebar {
+        position: static; left: auto; top: auto;
+        width: 100%; max-width: 100%; height: auto;
+        max-height: 55vh; flex: 0 0 auto; order: 1;
+        padding: 0.2rem 0.25rem; gap: 0.2rem; overflow-y: auto;
+        box-shadow: none; transition: none;
+        border-right: none; border-bottom: none;
+        margin-bottom: 0;
+    }
+    .sidebar .status-panel { margin-top: 0 !important; }
+    .sidebar .status-panel:empty {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .sidebar.open { left: auto; }
+    .sidebar .sidebar-attribution {
+        display: none !important;
+    }
+    .sidebar > div[style*="margin-top: auto"] { display: none; }
+    /* Antes logo fixed abaixo-izquierda solapaba a franxa da escala; en móvil non o mostramos aquí */
+    .sidebar .logo {
+        display: none !important;
+    }
+    .viewer {
+        order: 2; flex: 1 1 auto; height: auto; min-height: 0;
+        width: 100%; display: flex; flex-direction: column; overflow: hidden;
+        /* Era #000: cunta o panel gris créa unha “liña” dura contra o sidebar */
+        background-color: var(--bg-panel);
+        margin-top: 0;
+        padding-top: 0;
+    }
+    .map-viewer { height: 100%; width: 100%; flex-grow: 1; background-color: #000; }
+    #map { height: 100%; width: 100%; }
+    .menu-toggle { display: none !important; }
+    .sidebar-overlay { display: none !important; }
+    .modal-content { padding: 4rem 1rem 1rem 1rem; gap: 1rem; }
+    .modal-close-btn { top: 1rem; right: 1rem; width: 32px; height: 32px; font-size: 1.2rem; }
+    /* Unifica co sidebar; sen bordo nin sombra ficticia */
+    .timeline-controls {
+        left: 0;
+        width: 100%;
+        border: none;
+        outline: none;
+        box-shadow: none;
+        margin: 0;
+        margin-top: 0;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+        background-color: rgba(31, 41, 55, 1);
+        flex-shrink: 0;
+    }
+    .timeline-controls.timeline-controls--compact {
+        padding: 0.15rem 0.25rem;
+        gap: 2px;
+        row-gap: 2px;
+        flex-wrap: wrap;
+    }
+    .sidebar .control-group#overlays-group {
+        gap: 0.15rem;
+        margin: 0;
+        padding-bottom: 0;
+    }
+}
+
+/* Refuerzo: el primer bloque @media também define .viewer con fondo herdado —
+   igualamos panel en móvil para eliminar a franja #000 entre chips e timeline */
+@media (max-width: 1024px) {
+    .app-container {
+        gap: 0;
+        column-gap: 0;
+        row-gap: 0;
+    }
+    .sidebar .sidebar-flow {
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    .sidebar .opacity-container {
+        margin-top: 0.15rem;
+    }
 }

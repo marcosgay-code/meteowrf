@@ -215,3 +215,18 @@ cd /home/meteo/meteowrf/web_viewer
     ./run_server.sh restart
     ```
 *   **Actualización de Datos**: No es necesario reiniciar el servidor para ver nuevos mapas generados. El script `gen_manifest.py` (ejecutado por el orquestador principal del proyecto al terminar los cálculos diarios) actualiza dinámicamente el archivo enlazado `manifest.json`. Un simple refresco de la solapa de tu navegador web (F5) bastará para cargar instantáneamente la línea temporal de los nuevos datos.
+
+### Despliegue automático en producción (GitHub Actions)
+
+Al hacer **push a la rama `main`** con cambios dentro de **`web_viewer/**`** (o que toquen el propio `.github/workflows/deploy.yml`), GitHub ejecuta el workflow [.github/workflows/deploy.yml](.github/workflows/deploy.yml), que sincroniza el contenido estático del visor contra el servidor vía **SFTP**.
+
+Pasos relevantes del flujo:
+
+1. Checkout del repositorio.
+2. Eliminar **`web_viewer/PLOTS`** si existe como symlink (el paso de empaquetado/SCP falla si se intenta incluir ese enlace en algunos entornos).
+3. Subir **`web_viewer/*`** al directorio configurado como **`REMOTE_PATH`**, usando los secretos del repositorio: **`FTP_HOST`**, **`FTP_USERNAME`**, **`FTP_PASSWORD`**, **`REMOTE_PATH`**.
+
+**Notas:**
+
+- Los cambios que **no** tocan `web_viewer/` **no** disparan este despliegue (está acotado por `paths` en el workflow).
+- El visor referencia `style.css` y similares con un parámetro **`?v=…`** en `index.html` para mitigar caché del navegador tras publicar; conviene **incrementar ese número** cuando cambies CSS o JS y quieras forzar recarga inmediata en los clientes.

@@ -18,6 +18,10 @@ jobs:
       - name: 📥 Descargar código desde GitHub
         uses: actions/checkout@v4
 
+      # Symlink local PLOTS → rompe empaquetado/SCP en alguns entornos
+      - name: 🧹 Quitar symlink PLOTS se existe en web_viewer
+        run: rm -f web_viewer/PLOTS
+
       - name: 🚀 Sincronizar servidor web por SFTP
         uses: appleboy/scp-action@v0.1.7
         with:

@@ -39,8 +39,39 @@ const state = {
     markers: [],
     clickMarker: null,
     isTooltipPinned: false,
-    isInteractionLocked: false
+    isInteractionLocked: false,
+
+    /** Ciclo 🪂 timeline: dots_blue → names_green (etiquetas) → hidden */
+    soundingsMode: 'dots_blue'
 };
+
+const VAR_SHORT_LABELS = {
+    sfcwind: '',
+    wind1500: '1500',
+    wind2000: '2000',
+    wind2500: '2500',
+    wind3000: '3000',
+    blwind: 'Medio',
+    bltopwind: 'Altura',
+    wblmaxmin: '',
+    hglider: 'Teito',
+    wstar: 'Térmica',
+    cape: 'CAPE',
+    zblcl: 'B. cuberta',
+    zsfclcl: 'Base',
+    t2m: '🌡️'
+};
+const LAYER_SHORT_LABELS = {
+    lowfrac: 'Baixa', midfrac: 'Media', highfrac: 'Alta',
+    blcloudpct: '', rain: '🌧️'
+};
+const LAYER_ICONS = { blcloudpct: 'icons/nube.svg?v=1' };
+const VAR_ICONS = {
+    wblmaxmin: 'icons/converxencia.png?v=1',
+    sfcwind:   'icons/viento.png?v=1'
+};
+const WIND_VAR_IDS  = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000','blwind','bltopwind','wblmaxmin']);
+const CLOUD_VAR_IDS = new Set(['zblcl','zsfclcl','hglider','cape']);
 
 const els = {
     dateSelector: document.getElementById('date-selector'),
@@ -78,17 +109,47 @@ const els = {
     dynamicScale: document.getElementById('dynamic-scale')
 };
 
+/** manifest last_updated: YYYY-MM-DD HH:mm:ss → día mes hora:min (sen ano nin segundos), orde gl-ES */
+function formatLastUpdatedForDisplay(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    let date;
+    if (m) {
+        date = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    } else {
+        date = new Date(s);
+        if (Number.isNaN(date.getTime())) return '';
+    }
+    const dayNum = date.getDate();
+    let monthLbl = '';
+    try {
+        monthLbl = new Intl.DateTimeFormat('gl-ES', { month: 'short' }).format(date);
+    } catch {
+        monthLbl = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(date);
+    }
+    monthLbl = monthLbl.replace(/\./g, '').trim();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${dayNum} ${monthLbl} ${hh}:${min}`;
+}
+
 // --- Initialization ---
 
 async function init() {
     try {
+        if (els.lastUpdated) els.lastUpdated.textContent = 'Cargando…';
         // Añadimos un timestamp para evitar que el navegador guarde el archivo en caché
         const resp = await fetch('manifest.json?t=' + new Date().getTime());
         state.manifest = await resp.json();
 
-        // Show last updated
-        if (state.manifest.last_updated) {
-            els.lastUpdated.textContent = `Actualizado: ${state.manifest.last_updated}`;
+        if (els.lastUpdated) {
+            if (state.manifest.last_updated) {
+                const short = formatLastUpdatedForDisplay(state.manifest.last_updated);
+                els.lastUpdated.textContent = short ? `Actualizado: ${short}` : '';
+            } else {
+                els.lastUpdated.textContent = '';
+            }
         }
 
         state.particleEngine = new WindParticles(null);
@@ -99,7 +160,7 @@ async function init() {
         updateMarkers();
     } catch (e) {
         console.error("Failed to load manifest", e);
-        els.lastUpdated.textContent = "Erro cargando datos";
+        if (els.lastUpdated) els.lastUpdated.textContent = 'Erro cargando datos';
     }
 }
 
@@ -115,7 +176,7 @@ function initMap() {
         doubleClickZoom: true,
         boxZoom: false,
         zoomControl: true,
-        attributionControl: true,
+        attributionControl: false,
         minZoom: 3,
         maxZoom: 16
     });
@@ -202,8 +263,15 @@ function initMap() {
         }
     });
 
-    // Add scale control (Km/Miles)
-    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(state.map);
+    const leafletScale = L.control.scale({ imperial: false, position: 'bottomright' });
+    leafletScale.addTo(state.map);
+    const leafletScaleRoot = leafletScale.getContainer?.() || leafletScale._container;
+    const scaleAnchor = document.getElementById('leaflet-scale-anchor');
+    if (leafletScaleRoot && scaleAnchor) {
+        scaleAnchor.appendChild(leafletScaleRoot);
+        leafletScaleRoot.style.position = 'static';
+        leafletScaleRoot.style.margin = '0';
+    }
 
     L.Control.ParticlesToggle = L.Control.extend({
         options: { position: 'topright' },
@@ -431,9 +499,11 @@ function updateMarkers() {
         allSoundings.forEach(s => {
             if (s.lat != null && s.lon != null) {
                 const isActive = state.currentStation === s.id;
+                const fillNormal = state.soundingsMode === 'names_green' ? '#16a34a' : '#2563eb';
+                const fillActive = state.soundingsMode === 'names_green' ? '#4ade80' : '#38bdf8';
                 const marker = L.circleMarker([s.lat, s.lon], {
                     radius: 5,
-                    fillColor: isActive ? "#0af" : "#25f",
+                    fillColor: isActive ? fillActive : fillNormal,
                     color: "#fff",
                     weight: 2,
                     opacity: 1,
@@ -537,6 +607,49 @@ window.openSounding = function (stationId) {
     }
 };
 
+function applySoundingsModeFromCycle() {
+    if (state.soundingsMode === 'dots_blue') {
+        state.layers.soundings = true;
+        state.layers.takeoffs_names = false;
+    } else if (state.soundingsMode === 'names_green') {
+        state.layers.soundings = true;
+        state.layers.takeoffs_names = true;
+    } else {
+        state.soundingsMode = 'hidden';
+        state.layers.soundings = false;
+        state.layers.takeoffs_names = false;
+    }
+}
+
+function syncSoundingsCycleUI() {
+    const btn = document.getElementById('btn-sounding-cycle');
+    if (!btn) return;
+    btn.classList.remove('sounding-cycle-btn--blue', 'sounding-cycle-btn--green', 'sounding-cycle-btn--off');
+    if (state.soundingsMode === 'dots_blue') {
+        btn.classList.add('sounding-cycle-btn--blue');
+        btn.setAttribute('aria-label', 'Sondeos: puntos azuis. Pulsa para etiquetas en verde.');
+        btn.title = 'Sondeos: puntos azuis';
+    } else if (state.soundingsMode === 'names_green') {
+        btn.classList.add('sounding-cycle-btn--green');
+        btn.setAttribute('aria-label', 'Sondeos con etiquetas (verde). Pulsa para desactivar.');
+        btn.title = 'Sondeos con etiquetas';
+    } else {
+        btn.classList.add('sounding-cycle-btn--off');
+        btn.setAttribute('aria-label', 'Sondeos desactivados. Pulsa para puntos azuis.');
+        btn.title = 'Sondeos apagados';
+    }
+}
+
+function cycleSoundingsMode() {
+    const order = ['dots_blue', 'names_green', 'hidden'];
+    const i = Math.max(0, order.indexOf(state.soundingsMode));
+    state.soundingsMode = order[(i + 1) % order.length];
+    applySoundingsModeFromCycle();
+    syncSoundingsCycleUI();
+    updateMarkers();
+    updateImage();
+}
+
 function setupControls() {
     // Set initial domain based on view bounds if map exists, else d01
     const initialDomain = state.map ? getDomainForView() : 'd01';
@@ -578,6 +691,7 @@ function setupControls() {
         state.currentVar = e.target.value;
         updateModeVisibility();
         updateImage();
+        if (typeof syncVarButtonsActive === 'function') syncVarButtonsActive();
     };
 
     if (els.opacitySlider) {
@@ -596,6 +710,22 @@ function setupControls() {
                 state.baseLayer.setOpacity(state.overlayOpacity);
             }
         };
+    }
+
+    const opacityToggleBtn = document.getElementById('btn-opacity-toggle');
+    const opacityContainer = document.getElementById('opacity-container');
+    if (opacityToggleBtn && opacityContainer) {
+        opacityToggleBtn.addEventListener('click', () => {
+            const isOpen = opacityContainer.classList.toggle('show');
+            opacityToggleBtn.classList.toggle('active', isOpen);
+        });
+    }
+    const hideVarBtn = document.getElementById('btn-hide-var');
+    if (hideVarBtn) {
+        hideVarBtn.addEventListener('click', () => {
+            els.varSelector.value = 'none';
+            els.varSelector.dispatchEvent(new Event('change'));
+        });
     }
 
     if (els.closeModalBtn) {
@@ -667,65 +797,44 @@ function setupControls() {
     // Let's assume we append or clear. Existing static layers are: roads, cities, peaks, takeoffs.
     // They are hardcoded in HTML.
 
-    // Dynamic Layers from Manifest (Exclusive Group - Checkboxes acting as Radio)
-    const weatherLayersGroup = document.getElementById('weather-layers');
-    if (weatherLayersGroup) {
-        weatherLayersGroup.innerHTML = ''; // Clear
-        weatherLayersGroup.className = 'checkbox-group'; // Use checkbox styling if available, or keep radio-group
+    const LAYER_ORDER = ['blcloudpct', 'lowfrac', 'midfrac', 'highfrac', 'rain'];
+    const sortedLayers = [...state.manifest.configuration.layers].sort((a, b) => {
+        const ai = LAYER_ORDER.indexOf(a.id);
+        const bi = LAYER_ORDER.indexOf(b.id);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    sortedLayers.forEach(layer => {
+        if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toggle';
+        btn.dataset.layerId = layer.id;
 
-        if (state.manifest.configuration.layers) {
-            state.manifest.configuration.layers.forEach(layer => {
-                // Initialize state if needed
-                if (typeof state.layers[layer.id] === 'undefined') {
-                    state.layers[layer.id] = false;
-                }
-
-                const div = document.createElement('div');
-                div.className = 'checkbox-item'; // or radio-item
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = 'weather-layer'; // Name not strictly needed for exclusivity in checkbox, but good for grouping
-                checkbox.id = `layer-${layer.id}`;
-                checkbox.value = layer.id;
-                checkbox.checked = state.layers[layer.id];
-                checkbox.dataset.layerId = layer.id;
-
-                // On change, toggle this layer exclusively
-                checkbox.onchange = () => {
-                    setWeatherLayer(layer.id);
-                };
-
-                const label = document.createElement('label');
-                label.htmlFor = `layer-${layer.id}`;
-                label.textContent = layer.title;
-
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                weatherLayersGroup.appendChild(div);
-            });
+        const iconSrc = LAYER_ICONS[layer.id];
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
+            btn.appendChild(img);
         }
-    }
+        const label = (layer.id in LAYER_SHORT_LABELS) ? LAYER_SHORT_LABELS[layer.id] : layer.title;
+        if (label) {
+            const span = document.createElement('span'); span.textContent = label;
+            btn.appendChild(span);
+        } else if (iconSrc) {
+            btn.classList.add('icon-only');
+        }
+        if (state.layers[layer.id]) btn.classList.add('active');
+        btn.onclick = () => { setWeatherLayer(layer.id); syncTogglesUI(); };
+        document.getElementById('weather-layers').appendChild(btn);
+    });
 
-    // Static Toggles Listeners
-    const toggleTakeoffsNames = document.getElementById('toggle-takeoffs-names');
-    if (toggleTakeoffsNames) {
-        toggleTakeoffsNames.checked = state.layers.takeoffs_names || false;
-        toggleTakeoffsNames.onchange = (e) => {
-            state.layers.takeoffs_names = e.target.checked;
-            updateMarkers(); // Now affecting markers directly
-            updateImage();
-        };
+    // Sondeos: ciclo 🪂 na liña da data (esquerda do día)
+    const btnSoundingCycle = document.getElementById('btn-sounding-cycle');
+    if (btnSoundingCycle) {
+        btnSoundingCycle.addEventListener('click', () => cycleSoundingsMode());
     }
-
-    const toggleSoundings = document.getElementById('toggle-soundings');
-    if (toggleSoundings) {
-        toggleSoundings.checked = state.layers.soundings || false;
-        toggleSoundings.onchange = (e) => {
-            state.layers.soundings = e.target.checked;
-            updateMarkers();
-        };
-    }
+    applySoundingsModeFromCycle();
+    syncSoundingsCycleUI();
 
     const toggleBoundaries = document.getElementById('toggle-boundaries');
     if (toggleBoundaries) {
@@ -923,7 +1032,11 @@ function updateModeVisibility() {
  * Sync Toggle Buttons Visual State with Internal State
  */
 function syncTogglesUI() {
-    // Disabled logic from sidebar
+    document.querySelectorAll('#weather-layers .btn-toggle').forEach(btn => {
+        const id = btn.dataset.layerId;
+        btn.classList.toggle('active', !!(id && state.layers[id]));
+    });
+    updateCurrentVarLabel();
 }
 
 function setWeatherLayer(selectedId) {
@@ -941,31 +1054,8 @@ function setWeatherLayer(selectedId) {
         }
     }
 
-    // Special Link: If activating Rain, also activate Clouds (blcloudpct)
-    if (selectedId === 'rain' && state.layers['rain']) {
-        state.layers['blcloudpct'] = true;
-        for (const layerId in state.layers) {
-            if (layerId !== 'blcloudpct' && isCloudVariable(layerId)) {
-                state.layers[layerId] = false;
-            }
-        }
-    }
-
-    updateWeatherLayerUI(); // Sync checkbox circles
+    syncTogglesUI();
     updateImage();
-}
-
-function updateWeatherLayerUI() {
-    const group = document.getElementById('weather-layers');
-    if (!group) return;
-
-    const checkboxes = group.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        const layerId = cb.dataset.layerId;
-        if (layerId && typeof state.layers[layerId] !== 'undefined') {
-            cb.checked = state.layers[layerId];
-        }
-    });
 }
 
 function setDomain(dom) {
@@ -1103,6 +1193,90 @@ function updateViewTypeVisibility() {
 }
 */
 
+function populateVarButtons() {
+    const vars = state.manifest && state.manifest.configuration
+        && state.manifest.configuration.variables
+        ? state.manifest.configuration.variables : [];
+    const containers = {
+        wind:  document.getElementById('vars-wind'),
+        other: document.getElementById('vars-other'),
+        clouds: document.getElementById('vars-clouds')
+    };
+    if (!containers.wind || !containers.other) return;
+    containers.wind.innerHTML = '';
+    containers.other.innerHTML = '';
+    if (containers.clouds) containers.clouds.innerHTML = '';
+
+    vars.forEach(v => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toggle';
+        btn.dataset.varId = v.id;
+        const iconSrc = VAR_ICONS[v.id];
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
+            btn.appendChild(img);
+        }
+        const label = (v.id in VAR_SHORT_LABELS) ? VAR_SHORT_LABELS[v.id] : (v.title || v.id);
+        if (label) {
+            const span = document.createElement('span'); span.textContent = label;
+            btn.appendChild(span);
+        } else if (iconSrc) {
+            btn.classList.add('icon-only');
+        }
+        if (state.currentVar === v.id) btn.classList.add('active');
+        btn.onclick = () => {
+            els.varSelector.value = v.id;
+            els.varSelector.dispatchEvent(new Event('change'));
+            syncVarButtonsActive();
+        };
+        let target;
+        if (CLOUD_VAR_IDS.has(v.id) && containers.clouds) target = containers.clouds;
+        else if (WIND_VAR_IDS.has(v.id)) target = containers.wind;
+        else target = containers.other;
+        target.appendChild(btn);
+    });
+    updateCurrentVarLabel();
+}
+
+function syncVarButtonsActive() {
+    document.querySelectorAll('#vars-wind .btn-toggle, #vars-other .btn-toggle, #vars-clouds .btn-toggle, #btn-hide-var').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.varId === state.currentVar);
+    });
+    updateCurrentVarLabel();
+}
+
+function updateCurrentVarLabel() {
+    const labelEl = document.getElementById('current-var-label');
+    if (!labelEl) return;
+    const parts = [];
+    const cfg = state.manifest && state.manifest.configuration;
+    const id = state.currentVar;
+    if (id && id !== 'none' && cfg && cfg.variables) {
+        const v = cfg.variables.find(x => x.id === id);
+        if (v) {
+            const units = v.units ? ` (${v.units})` : '';
+            parts.push((v.title || id) + units);
+        }
+    }
+    if (cfg && cfg.layers) {
+        cfg.layers.forEach(layer => {
+            if (state.layers[layer.id]) {
+                const units = layer.units ? ` (${layer.units})` : '';
+                parts.push((layer.title || layer.id) + units);
+            }
+        });
+    }
+    if (parts.length === 0) {
+        labelEl.classList.add('hidden');
+        labelEl.textContent = '';
+    } else {
+        labelEl.textContent = parts.join(' · ');
+        labelEl.classList.remove('hidden');
+    }
+}
+
 function populateVars() {
     // Variables
     const vars = state.manifest.configuration.variables || [];
@@ -1135,6 +1309,7 @@ function populateVars() {
         els.varSelector.value = state.currentVar;
     }
 
+    populateVarButtons();
     // Update Mode Visibility based on new var
     updateModeVisibility();
 }
@@ -2113,37 +2288,21 @@ function updateDynamicScale(varId) {
     const ramp = getRampForVariable(varId);
     if (!ramp || !els.dynamicScale) return;
 
-    const gridData = state.gridDataMap[varId];
-    let unit = (gridData && gridData.units) || 'kt';
-
-    // Fallback to manifest units if grid not loaded
-    if (!gridData && state.manifest && state.manifest.configuration.variables) {
-        const v = state.manifest.configuration.variables.find(x => x.id === varId) ||
-            state.manifest.configuration.layers.find(x => x.id === varId);
-        if (v) unit = v.units;
-    }
     const lastStop = ramp[ramp.length - 1];
     const maxVal = lastStop.v;
     const minVal = ramp[0].v;
 
-    // Generate gradient stops
     const gradientStops = ramp.map((stop, i) => {
         const pct = ((stop.v - minVal) / (maxVal - minVal) * 100).toFixed(0);
         const r = stop.c[0];
         const g = stop.c[1];
         const b = stop.c[2];
         const a = stop.c.length > 3 ? stop.c[3] : 1.0;
-        // Legend should show the true color clearly, ignoring alpha so it doesn't blend invisibly into the DOM background.
-        // Or if transparency is desired in the legend, use rgba(). For clarity in meteorology ramps, forcing opaque rgb is often best.
-        // Let's use rgba but with a minimum opacity so it's visible, or just force rgb.
         return `rgb(${r}, ${g}, ${b}) ${pct}%`;
     }).join(', ');
 
     els.dynamicScale.innerHTML = `
-        <div class="scale-header">
-            <span class="scale-unit">${unit}</span>
-        </div>
-        <div class="scale-body">
+        <div class="scale-body scale-body--full">
             <div class="scale-gradient-container">
                 <div class="scale-gradient" style="background: linear-gradient(to right, ${gradientStops});">
                     <div class="scale-labels-overlay">
