@@ -42,6 +42,34 @@ const state = {
     isInteractionLocked: false
 };
 
+const VAR_SHORT_LABELS = {
+    sfcwind: '',
+    wind1500: '1500',
+    wind2000: '2000',
+    wind2500: '2500',
+    wind3000: '3000',
+    blwind: 'Medio',
+    bltopwind: 'Altura',
+    wblmaxmin: '',
+    hglider: 'Teito',
+    wstar: 'Térmica',
+    cape: 'CAPE',
+    zblcl: 'B. cuberta',
+    zsfclcl: 'Base',
+    t2m: '🌡️'
+};
+const LAYER_SHORT_LABELS = {
+    lowfrac: 'Baixa', midfrac: 'Media', highfrac: 'Alta',
+    blcloudpct: '', rain: '🌧️'
+};
+const LAYER_ICONS = { blcloudpct: 'icons/nube.svg?v=1' };
+const VAR_ICONS = {
+    wblmaxmin: 'icons/converxencia.png?v=1',
+    sfcwind:   'icons/viento.png?v=1'
+};
+const WIND_VAR_IDS  = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000','blwind','bltopwind','wblmaxmin']);
+const CLOUD_VAR_IDS = new Set(['zblcl','zsfclcl','hglider','cape']);
+
 const els = {
     dateSelector: document.getElementById('date-selector'),
     varSelector: null,
@@ -578,6 +606,7 @@ function setupControls() {
         state.currentVar = e.target.value;
         updateModeVisibility();
         updateImage();
+        if (typeof syncVarButtonsActive === 'function') syncVarButtonsActive();
     };
 
     if (els.opacitySlider) {
@@ -596,6 +625,22 @@ function setupControls() {
                 state.baseLayer.setOpacity(state.overlayOpacity);
             }
         };
+    }
+
+    const opacityToggleBtn = document.getElementById('btn-opacity-toggle');
+    const opacityContainer = document.getElementById('opacity-container');
+    if (opacityToggleBtn && opacityContainer) {
+        opacityToggleBtn.addEventListener('click', () => {
+            const isOpen = opacityContainer.classList.toggle('show');
+            opacityToggleBtn.classList.toggle('active', isOpen);
+        });
+    }
+    const hideVarBtn = document.getElementById('btn-hide-var');
+    if (hideVarBtn) {
+        hideVarBtn.addEventListener('click', () => {
+            els.varSelector.value = 'none';
+            els.varSelector.dispatchEvent(new Event('change'));
+        });
     }
 
     if (els.closeModalBtn) {
@@ -667,45 +712,36 @@ function setupControls() {
     // Let's assume we append or clear. Existing static layers are: roads, cities, peaks, takeoffs.
     // They are hardcoded in HTML.
 
-    // Dynamic Layers from Manifest (Exclusive Group - Checkboxes acting as Radio)
-    const weatherLayersGroup = document.getElementById('weather-layers');
-    if (weatherLayersGroup) {
-        weatherLayersGroup.innerHTML = ''; // Clear
-        weatherLayersGroup.className = 'checkbox-group'; // Use checkbox styling if available, or keep radio-group
+    const LAYER_ORDER = ['blcloudpct', 'lowfrac', 'midfrac', 'highfrac', 'rain'];
+    const sortedLayers = [...state.manifest.configuration.layers].sort((a, b) => {
+        const ai = LAYER_ORDER.indexOf(a.id);
+        const bi = LAYER_ORDER.indexOf(b.id);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    sortedLayers.forEach(layer => {
+        if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toggle';
+        btn.dataset.layerId = layer.id;
 
-        if (state.manifest.configuration.layers) {
-            state.manifest.configuration.layers.forEach(layer => {
-                // Initialize state if needed
-                if (typeof state.layers[layer.id] === 'undefined') {
-                    state.layers[layer.id] = false;
-                }
-
-                const div = document.createElement('div');
-                div.className = 'checkbox-item'; // or radio-item
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = 'weather-layer'; // Name not strictly needed for exclusivity in checkbox, but good for grouping
-                checkbox.id = `layer-${layer.id}`;
-                checkbox.value = layer.id;
-                checkbox.checked = state.layers[layer.id];
-                checkbox.dataset.layerId = layer.id;
-
-                // On change, toggle this layer exclusively
-                checkbox.onchange = () => {
-                    setWeatherLayer(layer.id);
-                };
-
-                const label = document.createElement('label');
-                label.htmlFor = `layer-${layer.id}`;
-                label.textContent = layer.title;
-
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                weatherLayersGroup.appendChild(div);
-            });
+        const iconSrc = LAYER_ICONS[layer.id];
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
+            btn.appendChild(img);
         }
-    }
+        const label = (layer.id in LAYER_SHORT_LABELS) ? LAYER_SHORT_LABELS[layer.id] : layer.title;
+        if (label) {
+            const span = document.createElement('span'); span.textContent = label;
+            btn.appendChild(span);
+        } else if (iconSrc) {
+            btn.classList.add('icon-only');
+        }
+        if (state.layers[layer.id]) btn.classList.add('active');
+        btn.onclick = () => { setWeatherLayer(layer.id); syncTogglesUI(); };
+        document.getElementById('weather-layers').appendChild(btn);
+    });
 
     // Static Toggles Listeners
     const toggleTakeoffsNames = document.getElementById('toggle-takeoffs-names');
@@ -923,7 +959,11 @@ function updateModeVisibility() {
  * Sync Toggle Buttons Visual State with Internal State
  */
 function syncTogglesUI() {
-    // Disabled logic from sidebar
+    document.querySelectorAll('#weather-layers .btn-toggle').forEach(btn => {
+        const id = btn.dataset.layerId;
+        btn.classList.toggle('active', !!(id && state.layers[id]));
+    });
+    updateCurrentVarLabel();
 }
 
 function setWeatherLayer(selectedId) {
@@ -936,16 +976,6 @@ function setWeatherLayer(selectedId) {
     if (state.layers[selectedId] && isCloudVariable(selectedId)) {
         for (const layerId in state.layers) {
             if (layerId !== selectedId && isCloudVariable(layerId)) {
-                state.layers[layerId] = false;
-            }
-        }
-    }
-
-    // Special Link: If activating Rain, also activate Clouds (blcloudpct)
-    if (selectedId === 'rain' && state.layers['rain']) {
-        state.layers['blcloudpct'] = true;
-        for (const layerId in state.layers) {
-            if (layerId !== 'blcloudpct' && isCloudVariable(layerId)) {
                 state.layers[layerId] = false;
             }
         }
@@ -1103,6 +1133,90 @@ function updateViewTypeVisibility() {
 }
 */
 
+function populateVarButtons() {
+    const vars = state.manifest && state.manifest.configuration
+        && state.manifest.configuration.variables
+        ? state.manifest.configuration.variables : [];
+    const containers = {
+        wind:  document.getElementById('vars-wind'),
+        other: document.getElementById('vars-other'),
+        clouds: document.getElementById('vars-clouds')
+    };
+    if (!containers.wind || !containers.other) return;
+    containers.wind.innerHTML = '';
+    containers.other.innerHTML = '';
+    if (containers.clouds) containers.clouds.innerHTML = '';
+
+    vars.forEach(v => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toggle';
+        btn.dataset.varId = v.id;
+        const iconSrc = VAR_ICONS[v.id];
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
+            btn.appendChild(img);
+        }
+        const label = (v.id in VAR_SHORT_LABELS) ? VAR_SHORT_LABELS[v.id] : (v.title || v.id);
+        if (label) {
+            const span = document.createElement('span'); span.textContent = label;
+            btn.appendChild(span);
+        } else if (iconSrc) {
+            btn.classList.add('icon-only');
+        }
+        if (state.currentVar === v.id) btn.classList.add('active');
+        btn.onclick = () => {
+            els.varSelector.value = v.id;
+            els.varSelector.dispatchEvent(new Event('change'));
+            syncVarButtonsActive();
+        };
+        let target;
+        if (CLOUD_VAR_IDS.has(v.id) && containers.clouds) target = containers.clouds;
+        else if (WIND_VAR_IDS.has(v.id)) target = containers.wind;
+        else target = containers.other;
+        target.appendChild(btn);
+    });
+    updateCurrentVarLabel();
+}
+
+function syncVarButtonsActive() {
+    document.querySelectorAll('#vars-wind .btn-toggle, #vars-other .btn-toggle, #vars-clouds .btn-toggle, #btn-hide-var').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.varId === state.currentVar);
+    });
+    updateCurrentVarLabel();
+}
+
+function updateCurrentVarLabel() {
+    const labelEl = document.getElementById('current-var-label');
+    if (!labelEl) return;
+    const parts = [];
+    const cfg = state.manifest && state.manifest.configuration;
+    const id = state.currentVar;
+    if (id && id !== 'none' && cfg && cfg.variables) {
+        const v = cfg.variables.find(x => x.id === id);
+        if (v) {
+            const units = v.units ? ` (${v.units})` : '';
+            parts.push((v.title || id) + units);
+        }
+    }
+    if (cfg && cfg.layers) {
+        cfg.layers.forEach(layer => {
+            if (state.layers[layer.id]) {
+                const units = layer.units ? ` (${layer.units})` : '';
+                parts.push((layer.title || layer.id) + units);
+            }
+        });
+    }
+    if (parts.length === 0) {
+        labelEl.classList.add('hidden');
+        labelEl.textContent = '';
+    } else {
+        labelEl.textContent = parts.join(' · ');
+        labelEl.classList.remove('hidden');
+    }
+}
+
 function populateVars() {
     // Variables
     const vars = state.manifest.configuration.variables || [];
@@ -1135,6 +1249,7 @@ function populateVars() {
         els.varSelector.value = state.currentVar;
     }
 
+    populateVarButtons();
     // Update Mode Visibility based on new var
     updateModeVisibility();
 }
