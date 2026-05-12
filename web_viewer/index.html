@@ -28,7 +28,7 @@
     <title>Meteonube</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=16">
+    <link rel="stylesheet" href="style.css?v=20">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -55,12 +55,6 @@
                     <div class="btn-cluster" id="vars-wind"></div>
                     <div class="btn-cluster" id="vars-other"></div>
                     <label class="btn-toggle btn-toggle--inverse"><input type="checkbox" id="toggle-provinces" checked><span>Bordes</span></label>
-                    <button type="button" id="btn-hide-var" class="btn-toggle" data-var-id="none" aria-label="Ocultar variable meteorológica">🚫</button>
-                    <button type="button" id="btn-opacity-toggle" class="btn-toggle" aria-label="Mostrar/ocultar control de opacidade">🎚️</button>
-                </div>
-                <div class="opacity-container" id="opacity-container">
-                    <label class="opacity-label">🎚️ Opacidade</label>
-                    <input type="range" id="opacity-slider" min="10" max="100" value="45">
                 </div>
             </div>
 
@@ -92,6 +86,13 @@
                     <select id="time-selector" class="timeline-time"></select>
                     <button id="next-time-btn" class="time-nav-btn" aria-label="Hora siguiente">⏭</button>
                 </div>
+                <div class="timeline-controls-trailing">
+                    <button type="button" id="btn-opacity-toggle" class="time-nav-btn timeline-opacity-btn" aria-label="Mostrar/ocultar control de opacidade">🎚️</button>
+                </div>
+            </div>
+            <div class="opacity-container opacity-container--below-timeline" id="opacity-container">
+                <label class="opacity-label" for="opacity-slider">🎚️ Opacidade</label>
+                <input type="range" id="opacity-slider" min="10" max="100" value="45">
             </div>
 
             <!-- Leaflet Map -->
@@ -106,7 +107,9 @@
                                 <div id="last-updated" class="last-updated-scale" aria-live="polite"></div>
                                 <div id="leaflet-scale-anchor" class="leaflet-scale-anchor"></div>
                             </div>
-                            <div id="dynamic-scale" class="dynamic-scale hidden"></div>
+                            <div id="dynamic-scale" class="dynamic-scale hidden" role="button" tabindex="-1"
+                                aria-expanded="true"
+                                aria-label="Mostrar ou ocultar números da escala, datos actualizados e panel de variables (en móbil)"></div>
                         </div>
                     </div>
                 </div>
@@ -137,7 +140,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=17"></script>
 </body>
 
 </html>

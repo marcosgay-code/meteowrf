@@ -70,7 +70,7 @@ body.has-modal {
     display: none;
 }
 
-.control-group label {
+.control-group label:not(.btn-toggle) {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);
@@ -383,6 +383,32 @@ select:focus {
     border: none;
     box-shadow: none;
     pointer-events: auto;
+    cursor: pointer;
+}
+
+.dynamic-scale:focus {
+    outline: none;
+}
+
+.dynamic-scale:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Alternar co gradiente: ocultar fila “Actualizado”/escala km, etiqueta no mapa e (móbil) sidebar;
+   mantéranse os números sobre o gradiente de cores */
+body.scale-gradient-hide-details .scale-meta-row {
+    display: none !important;
+}
+
+body.scale-gradient-hide-details #current-var-label {
+    visibility: hidden !important;
+}
+
+@media (max-width: 1024px) {
+    body.scale-gradient-hide-details .sidebar {
+        display: none !important;
+    }
 }
 
 .scale-body.scale-body--full {
@@ -433,6 +459,13 @@ select:focus {
     font-weight: 800;
     text-shadow: 0 0 3px #000, 1px 1px 2px #000;
     z-index: 10;
+    line-height: 1;
+}
+
+/* Fila superior só cando JS detecta solapamento (.layoutGradientScaleLabels). */
+.scale-labels-overlay span.scale-label--row-top {
+    top: 0;
+    bottom: auto;
 }
 
 .leaflet-scale-anchor .leaflet-control-scale {
@@ -495,13 +528,38 @@ select:focus {
     row-gap: 2px;
     column-gap: 2px;
     padding: 0.2rem 0.35rem;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: center;
     flex-wrap: nowrap;
 }
 
 .timeline-controls.timeline-controls--compact > .control-group-inline {
     gap: 2px;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/** Botón opacidade pegado á dereita da fila (despois de hora) */
+.timeline-controls-trailing {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-left: auto;
     flex-shrink: 0;
+}
+
+.timeline-controls.timeline-controls--compact .timeline-date,
+.timeline-controls.timeline-controls--compact .timeline-time {
+    min-width: 0;
+}
+
+.timeline-controls.timeline-controls--compact .timeline-date {
+    max-width: min(118px, 32vw);
+}
+
+.timeline-controls.timeline-controls--compact .timeline-time {
+    max-width: min(68px, 17vw);
+    font-size: 0.8rem;
 }
 
 .control-group-inline {
@@ -1088,14 +1146,27 @@ input[type=range] {
 .btn-toggle.icon-only { padding: 0.15rem 0.5rem; }
 .btn-toggle.icon-only .btn-icon { width: auto; height: 20px; }
 
-/* Slider de opacidad oculto por defecto */
+/* Slider de opacidade oculto por defecto (sidebar ou baixo timeline) */
 .opacity-container {
     margin-top: 0.4rem;
-    display: none; flex-direction: column; gap: 0.25rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
 }
+
+.opacity-container.opacity-container--below-timeline {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0 0.35rem 0.35rem;
+    background-color: rgba(31, 41, 55, 0.98);
+    flex-shrink: 0;
+}
+
 .opacity-container.show { display: flex; }
 #btn-opacity-toggle.active {
-    background: var(--accent); border-color: var(--accent); color: white;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
 }
 .opacity-label { font-size: 0.75rem; color: var(--text-secondary); }
 #opacity-slider { width: 100%; }
@@ -1109,11 +1180,6 @@ input[type=range] {
     z-index: 900; pointer-events: none; white-space: nowrap;
 }
 .current-var-label.hidden { display: none; }
-
-/* Excluir btn-toggle de la regla genérica de labels */
-.control-group label:not(.btn-toggle) {
-    font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);
-}
 
 /* Responsive: sidebar como franja superior en móvil */
 @media (max-width: 1024px) {
@@ -1175,10 +1241,11 @@ input[type=range] {
         flex-shrink: 0;
     }
     .timeline-controls.timeline-controls--compact {
-        padding: 0.15rem 0.25rem;
+        padding: 0.12rem 0.2rem;
         gap: 2px;
         row-gap: 2px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
     }
     .sidebar .control-group#overlays-group {
         gap: 0.15rem;
@@ -1198,8 +1265,5 @@ input[type=range] {
     .sidebar .sidebar-flow {
         margin-bottom: 0;
         padding-bottom: 0;
-    }
-    .sidebar .opacity-container {
-        margin-top: 0.15rem;
     }
 }

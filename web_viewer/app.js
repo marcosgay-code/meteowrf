@@ -33,7 +33,7 @@ const state = {
     particleEngine: null,
     map: null,
     baseLayer: null,
-    weatherOverlay: null,
+    scalarOverlayByVarId: {},
     vectorOverlay: null,
     dynamicOverlays: {}, // Store L.imageOverlay by layer id
     markers: [],
@@ -42,17 +42,21 @@ const state = {
     isInteractionLocked: false,
 
     /** Ciclo 🪂 timeline: dots_blue → names_green (etiquetas) → hidden */
-    soundingsMode: 'dots_blue'
+    soundingsMode: 'dots_blue',
+
+    /** Pulsar escala de cores: mostrar/ocultar metadatos da escala e (≤1024px) sidebar por riba da liña tempo */
+    scaleChromeExpanded: true,
+
+    /** Variables escalares activas (máx. 2): como máximo unha de vento e unha de nubes */
+    activeScalarVarIds: []
 };
 
 const VAR_SHORT_LABELS = {
     sfcwind: '',
-    wind1500: '1500',
-    wind2000: '2000',
-    wind2500: '2500',
-    wind3000: '3000',
-    blwind: 'Medio',
-    bltopwind: 'Altura',
+    wind1500: '1.5',
+    wind2000: '2',
+    wind2500: '2.5',
+    wind3000: '3',
     wblmaxmin: '',
     hglider: 'Teito',
     wstar: 'Térmica',
@@ -70,8 +74,13 @@ const VAR_ICONS = {
     wblmaxmin: 'icons/converxencia.png?v=1',
     sfcwind:   'icons/viento.png?v=1'
 };
+/** Non mostrar na UI (chips nin despregable mapa); seguen no manifest/backend */
+const HIDDEN_UI_VAR_IDS = new Set(['blwind', 'bltopwind']);
+
 const WIND_VAR_IDS  = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000','blwind','bltopwind','wblmaxmin']);
 const CLOUD_VAR_IDS = new Set(['zblcl','zsfclcl','hglider','cape']);
+/** Ventos con campo vector/partículas (exclúe p.ex. converxencias e vars só backend) */
+const WIND_SPEED_VAR_IDS = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000']);
 
 const els = {
     dateSelector: document.getElementById('date-selector'),
@@ -108,6 +117,52 @@ const els = {
     mapContainer: document.getElementById('map'),
     dynamicScale: document.getElementById('dynamic-scale')
 };
+
+function scalarVarCategory(varId) {
+    if (WIND_VAR_IDS.has(varId)) return 'wind';
+    if (CLOUD_VAR_IDS.has(varId)) return 'cloud';
+    return 'other';
+}
+
+/** Variable principal para vectores/partículas/tooltip: prioriza vento “rápido”, logo calquera vento, logo a primeira activa */
+function derivePrimaryCurrentVar() {
+    const ids = state.activeScalarVarIds;
+    const speedWind = ids.find(id => WIND_SPEED_VAR_IDS.has(id));
+    if (speedWind) return speedWind;
+    const anyWind = ids.find(id => WIND_VAR_IDS.has(id));
+    if (anyWind) return anyWind;
+    return ids[0] || 'none';
+}
+
+function applyDerivedCurrentVar() {
+    state.currentVar = derivePrimaryCurrentVar();
+    if (els.varSelector) {
+        els.varSelector.value = state.currentVar === 'none' ? 'none' : state.currentVar;
+    }
+}
+
+/** Alternar chip de variable: máximo 2 activas; como máximo unha de vento e unha de nubes */
+function toggleScalarVariable(varId) {
+    const idx = state.activeScalarVarIds.indexOf(varId);
+    if (idx !== -1) {
+        state.activeScalarVarIds.splice(idx, 1);
+    } else {
+        const cat = scalarVarCategory(varId);
+        state.activeScalarVarIds = state.activeScalarVarIds.filter(v => {
+            if (cat === 'wind' && WIND_VAR_IDS.has(v)) return false;
+            if (cat === 'cloud' && CLOUD_VAR_IDS.has(v)) return false;
+            return true;
+        });
+        state.activeScalarVarIds.push(varId);
+        while (state.activeScalarVarIds.length > 2) {
+            state.activeScalarVarIds.shift();
+        }
+    }
+    applyDerivedCurrentVar();
+    syncVarButtonsActive();
+    updateModeVisibility();
+    updateImage();
+}
 
 /** manifest last_updated: YYYY-MM-DD HH:mm:ss → día mes hora:min (sen ano nin segundos), orde gl-ES */
 function formatLastUpdatedForDisplay(raw) {
@@ -158,6 +213,10 @@ async function init() {
         updateUIForType();
         updateImage();
         updateMarkers();
+
+        if (typeof ResizeObserver !== 'undefined' && els.dynamicScale) {
+            new ResizeObserver(() => scheduleGradientScaleLabelsLayout()).observe(els.dynamicScale);
+        }
     } catch (e) {
         console.error("Failed to load manifest", e);
         if (els.lastUpdated) els.lastUpdated.textContent = 'Erro cargando datos';
@@ -329,12 +388,6 @@ function initMap() {
                 L.DomEvent.stopPropagation(e);
             });
 
-            select.addEventListener('change', (e) => {
-                state.currentVar = e.target.value;
-                updateUIForType();
-                updateImage();
-            });
-
             els.varSelector = select;
             els.varGroup = container;
 
@@ -457,7 +510,10 @@ function setDomainInternal(dom) {
     state.currentDomain = dom;
 
     // Clear existing overlays
-    if (state.weatherOverlay) { state.map.removeLayer(state.weatherOverlay); state.weatherOverlay = null; }
+    Object.keys(state.scalarOverlayByVarId).forEach(k => {
+        if (state.scalarOverlayByVarId[k]) state.map.removeLayer(state.scalarOverlayByVarId[k]);
+        delete state.scalarOverlayByVarId[k];
+    });
     if (state.vectorOverlay) { state.map.removeLayer(state.vectorOverlay); state.vectorOverlay = null; }
     Object.keys(state.dynamicOverlays).forEach(k => {
         if (state.dynamicOverlays[k]) state.map.removeLayer(state.dynamicOverlays[k]);
@@ -688,10 +744,13 @@ function setupControls() {
     */
 
     els.varSelector.onchange = (e) => {
-        state.currentVar = e.target.value;
+        const v = e.target.value;
+        if (v === 'none') state.activeScalarVarIds = [];
+        else state.activeScalarVarIds = [v];
+        applyDerivedCurrentVar();
+        syncVarButtonsActive();
         updateModeVisibility();
         updateImage();
-        if (typeof syncVarButtonsActive === 'function') syncVarButtonsActive();
     };
 
     if (els.opacitySlider) {
@@ -720,14 +779,6 @@ function setupControls() {
             opacityToggleBtn.classList.toggle('active', isOpen);
         });
     }
-    const hideVarBtn = document.getElementById('btn-hide-var');
-    if (hideVarBtn) {
-        hideVarBtn.addEventListener('click', () => {
-            els.varSelector.value = 'none';
-            els.varSelector.dispatchEvent(new Event('change'));
-        });
-    }
-
     if (els.closeModalBtn) {
         els.closeModalBtn.addEventListener('click', () => {
             els.overlayContainer.classList.add('hidden');
@@ -959,15 +1010,57 @@ function setupControls() {
         // Ensure map resizes correctly when the window or orientation changes
         window.addEventListener('resize', () => {
             state.map.invalidateSize();
+            scheduleGradientScaleLabelsLayout();
         });
         window.addEventListener('orientationchange', () => {
             // Short delay to allow browser to calculate new dimensions
             setTimeout(() => {
                 state.map.invalidateSize();
+                scheduleGradientScaleLabelsLayout();
             }, 200);
         });
     }
+
+    setupScaleGradientToggle();
 }
+
+function applyScaleChromeVisibility() {
+    document.body.classList.toggle('scale-gradient-hide-details', !state.scaleChromeExpanded);
+    if (els.dynamicScale) {
+        els.dynamicScale.setAttribute('aria-expanded', state.scaleChromeExpanded ? 'true' : 'false');
+    }
+    if (state.map) requestAnimationFrame(() => state.map.invalidateSize());
+}
+
+function syncDynamicScaleInteractiveAttrs() {
+    if (!els.dynamicScale) return;
+    const visible = !els.dynamicScale.classList.contains('hidden');
+    els.dynamicScale.tabIndex = visible ? 0 : -1;
+    els.dynamicScale.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
+
+/** Un clic no gradiente alterna etiquetas numéricas, fila “Actualizado”/escala km, etiqueta da variable no mapa; en móbil tamén o panel de chips por riba da data/hora. */
+function setupScaleGradientToggle() {
+    if (!els.dynamicScale || els.dynamicScale.dataset.gradientToggleBound === '1') return;
+    els.dynamicScale.dataset.gradientToggleBound = '1';
+
+    els.dynamicScale.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.scaleChromeExpanded = !state.scaleChromeExpanded;
+        applyScaleChromeVisibility();
+    });
+
+    els.dynamicScale.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        state.scaleChromeExpanded = !state.scaleChromeExpanded;
+        applyScaleChromeVisibility();
+    });
+
+    applyScaleChromeVisibility();
+    syncDynamicScaleInteractiveAttrs();
+}
+
 function updateUIForType() {
     // Map controls always visible
     if (els.varGroup) els.varGroup.classList.remove('hidden');
@@ -1014,8 +1107,7 @@ function updateUIForType() {
 
 function updateModeVisibility() {
     if (!state.map) return;
-    const WIND_VARS = ['sfcwind', 'wind1500', 'wind2000', 'wind2500', 'wind3000', 'blwind', 'bltopwind'];
-    const isWind = WIND_VARS.includes(state.currentVar);
+    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
 
     if (state.particlesControlContainer) {
         state.particlesControlContainer.style.display = isWind ? 'block' : 'none';
@@ -1208,6 +1300,7 @@ function populateVarButtons() {
     if (containers.clouds) containers.clouds.innerHTML = '';
 
     vars.forEach(v => {
+        if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn-toggle';
@@ -1225,12 +1318,8 @@ function populateVarButtons() {
         } else if (iconSrc) {
             btn.classList.add('icon-only');
         }
-        if (state.currentVar === v.id) btn.classList.add('active');
-        btn.onclick = () => {
-            els.varSelector.value = v.id;
-            els.varSelector.dispatchEvent(new Event('change'));
-            syncVarButtonsActive();
-        };
+        if (state.activeScalarVarIds.includes(v.id)) btn.classList.add('active');
+        btn.onclick = () => toggleScalarVariable(v.id);
         let target;
         if (CLOUD_VAR_IDS.has(v.id) && containers.clouds) target = containers.clouds;
         else if (WIND_VAR_IDS.has(v.id)) target = containers.wind;
@@ -1241,8 +1330,8 @@ function populateVarButtons() {
 }
 
 function syncVarButtonsActive() {
-    document.querySelectorAll('#vars-wind .btn-toggle, #vars-other .btn-toggle, #vars-clouds .btn-toggle, #btn-hide-var').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.varId === state.currentVar);
+    document.querySelectorAll('#vars-wind .btn-toggle, #vars-other .btn-toggle, #vars-clouds .btn-toggle').forEach(btn => {
+        btn.classList.toggle('active', state.activeScalarVarIds.includes(btn.dataset.varId));
     });
     updateCurrentVarLabel();
 }
@@ -1252,13 +1341,14 @@ function updateCurrentVarLabel() {
     if (!labelEl) return;
     const parts = [];
     const cfg = state.manifest && state.manifest.configuration;
-    const id = state.currentVar;
-    if (id && id !== 'none' && cfg && cfg.variables) {
-        const v = cfg.variables.find(x => x.id === id);
-        if (v) {
-            const units = v.units ? ` (${v.units})` : '';
-            parts.push((v.title || id) + units);
-        }
+    if (cfg && cfg.variables) {
+        state.activeScalarVarIds.forEach(id => {
+            const v = cfg.variables.find(x => x.id === id);
+            if (v) {
+                const units = v.units ? ` (${v.units})` : '';
+                parts.push((v.title || id) + units);
+            }
+        });
     }
     if (cfg && cfg.layers) {
         cfg.layers.forEach(layer => {
@@ -1278,39 +1368,38 @@ function updateCurrentVarLabel() {
 }
 
 function populateVars() {
-    // Variables
     const vars = state.manifest.configuration.variables || [];
-    const currentVar = state.currentVar;
+
+    state.activeScalarVarIds = state.activeScalarVarIds.filter(
+        id => vars.some(v => v.id === id) && !HIDDEN_UI_VAR_IDS.has(id)
+    );
+    if (state.activeScalarVarIds.length === 0) {
+        const sfcwind = vars.find(v => v.id === 'sfcwind');
+        if (sfcwind) state.activeScalarVarIds = [sfcwind.id];
+        else {
+            const vis = vars.find(v => !HIDDEN_UI_VAR_IDS.has(v.id));
+            if (vis) state.activeScalarVarIds = [vis.id];
+        }
+    }
 
     els.varSelector.innerHTML = '';
 
-    // Add "Ocultar" option
     const noneOpt = document.createElement('option');
     noneOpt.value = 'none';
     noneOpt.textContent = 'Ocultar';
     els.varSelector.appendChild(noneOpt);
 
     vars.forEach(v => {
+        if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
         const opt = document.createElement('option');
         opt.value = v.id;
         opt.textContent = v.title || v.id;
         els.varSelector.appendChild(opt);
     });
 
-    // Attempt restore
-    if (currentVar === 'none') {
-        els.varSelector.value = 'none';
-    } else if (vars.some(v => v.id === currentVar)) {
-        els.varSelector.value = currentVar;
-    } else {
-        // Default to sfcwind if available, otherwise 'none'
-        const sfcwind = vars.find(v => v.id === 'sfcwind');
-        state.currentVar = sfcwind ? sfcwind.id : (vars.length > 0 ? vars[0].id : 'none');
-        els.varSelector.value = state.currentVar;
-    }
+    applyDerivedCurrentVar();
 
     populateVarButtons();
-    // Update Mode Visibility based on new var
     updateModeVisibility();
 }
 
@@ -1349,7 +1438,7 @@ function updateImage() {
     }
 
     // Determine all variables that need to be loaded as grids
-    const varsToLoad = [state.currentVar];
+    const varsToLoad = [...state.activeScalarVarIds];
     if (state.manifest && state.manifest.configuration.layers) {
         state.manifest.configuration.layers.forEach(l => {
             if (state.layers[l.id]) varsToLoad.push(l.id);
@@ -1364,7 +1453,7 @@ function updateImage() {
 
     // Partículas integration
     if (state.particleEngine) {
-        const isWind = ['sfcwind', 'wind1500', 'wind2000', 'wind2500', 'wind3000', 'blwind', 'bltopwind'].includes(state.currentVar);
+        const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
         const showParticles = (state.vectorMode === 'particles' && isWind);
 
         if (showParticles && state.gridDataMap[state.currentVar] && state.gridDataMap[state.currentVar].grid && state.gridDataMap[state.currentVar].grid.twsKn) {
@@ -1384,7 +1473,7 @@ async function updateDataGrid(varId) {
 
     if (state.gridLoadingMap[varId] === url) return;
 
-    const isWind = ['sfcwind', 'wind1500', 'wind2000', 'wind2500', 'wind3000', 'blwind', 'bltopwind'].includes(varId);
+    const isWind = WIND_SPEED_VAR_IDS.has(varId);
     const currentZoom = state.map ? state.map.getZoom() : 5;
     const cacheKey = state.vectorMode + "_" + currentZoom;
 
@@ -1397,7 +1486,7 @@ async function updateDataGrid(varId) {
         // Mode or zoom changed for wind: re-generate vector without re-fetching
         state.vectorGridUrlMap[varId] = await generateVectorImageDataURL(state.gridDataMap[varId], state.vectorMode);
         state.gridVectorModeMap[varId] = cacheKey;
-        if (varId === state.currentVar || state.layers[varId]) updateImage();
+        if (state.activeScalarVarIds.includes(varId) || state.layers[varId]) updateImage();
         return;
     }
 
@@ -1430,8 +1519,8 @@ async function updateDataGrid(varId) {
             state.gridLoadedUrlMap[varId] = url;
             if (isWind) state.gridVectorModeMap[varId] = cacheKey;
 
-            // Refresh UI if this is the active variable or an active layer
-            if (varId === state.currentVar || state.layers[varId]) {
+            // Refresh UI if this variable is active as scalar or as manifest layer
+            if (state.activeScalarVarIds.includes(varId) || state.layers[varId]) {
                 updateImage();
             }
         } else {
@@ -1553,8 +1642,10 @@ function updateMapOverlays() {
 
     // If no domain (bounds is null), hide all domain-specific overlays
     if (!bounds || !state.currentDomain) {
-        if (state.weatherOverlay) state.map.removeLayer(state.weatherOverlay);
-        state.weatherOverlay = null;
+        Object.keys(state.scalarOverlayByVarId).forEach(k => {
+            if (state.scalarOverlayByVarId[k]) state.map.removeLayer(state.scalarOverlayByVarId[k]);
+            delete state.scalarOverlayByVarId[k];
+        });
         if (state.vectorOverlay) state.map.removeLayer(state.vectorOverlay);
         state.vectorOverlay = null;
         Object.keys(state.dynamicOverlays).forEach(k => {
@@ -1562,7 +1653,10 @@ function updateMapOverlays() {
             delete state.dynamicOverlays[k];
         });
         els.imgScale.classList.add('hidden');
-        if (els.dynamicScale) els.dynamicScale.classList.add('hidden');
+        if (els.dynamicScale) {
+            els.dynamicScale.classList.add('hidden');
+            syncDynamicScaleInteractiveAttrs();
+        }
         return;
     }
 
@@ -1570,22 +1664,31 @@ function updateMapOverlays() {
     const dayPath = getBasePath(); // Daily folder
     const rootPath = getDomainRootPath(); // Domain root
 
-    // 1. Variable: HHMM_var.webp (Scalar Base)
-    const activeScalarVar = getActiveScalarVarId();
-
-    const gridUrl = state.gridUrlMap[activeScalarVar];
-
-    if (gridUrl && activeScalarVar !== 'none') {
-        state.weatherOverlay = updateLeafletOverlay(state.weatherOverlay, true, gridUrl, bounds, { opacity: 1.0, zIndex: 20 });
-    } else {
-        if (state.weatherOverlay) {
-            state.map.removeLayer(state.weatherOverlay);
-            state.weatherOverlay = null;
+    // 1. Variables escalares do manifest (0–2 capas, z crecente)
+    const wantedScalars = new Set(state.activeScalarVarIds.filter(id => id && id !== 'none'));
+    Object.keys(state.scalarOverlayByVarId).forEach(vid => {
+        if (!wantedScalars.has(vid)) {
+            const lyr = state.scalarOverlayByVarId[vid];
+            if (lyr) state.map.removeLayer(lyr);
+            delete state.scalarOverlayByVarId[vid];
         }
-    }
+    });
+    let zScalar = 20;
+    state.activeScalarVarIds.forEach(vid => {
+        if (!vid || vid === 'none') return;
+        const gridUrl = state.gridUrlMap[vid];
+        state.scalarOverlayByVarId[vid] = updateLeafletOverlay(
+            state.scalarOverlayByVarId[vid],
+            !!gridUrl,
+            gridUrl,
+            bounds,
+            { opacity: 1.0, zIndex: zScalar }
+        );
+        zScalar += 1;
+    });
 
     // 2. Vectors/Barbs/Particles
-    const isWind = ['sfcwind', 'wind1500', 'wind2000', 'wind2500', 'wind3000', 'blwind', 'bltopwind'].includes(state.currentVar);
+    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
     const showVector = (state.vectorMode !== 'particles' && isWind);
     let vecUrl = '';
 
@@ -1611,14 +1714,14 @@ function updateMapOverlays() {
     const dynamicLayers = state.manifest.configuration.layers || [];
     dynamicLayers.forEach(layer => {
         let showLayer = state.layers[layer.id];
-        if (layer.id === activeScalarVar) showLayer = false; // Already shown as base scalar
+        if (state.activeScalarVarIds.includes(layer.id)) showLayer = false;
 
         let layerUrl = state.gridUrlMap[layer.id] || '';
         state.dynamicOverlays[layer.id] = updateLeafletOverlay(state.dynamicOverlays[layer.id], showLayer, layerUrl, bounds, { opacity: 1.0, zIndex: 40 });
     });
 
     // 4. Scale
-    let scaleVar = state.currentVar;
+    let scaleVar = derivePrimaryCurrentVar();
     dynamicLayers.forEach(layer => {
         if (state.layers[layer.id]) scaleVar = layer.id;
     });
@@ -1627,13 +1730,15 @@ function updateMapOverlays() {
     if (scaleVar && scaleVar !== 'none') {
         els.dynamicScale.classList.remove('hidden');
         updateDynamicScale(scaleVar);
+        syncDynamicScaleInteractiveAttrs();
     } else {
         els.dynamicScale.classList.add('hidden');
+        syncDynamicScaleInteractiveAttrs();
     }
 }
 
 function getActiveScalarVarId() {
-    let activeVar = state.currentVar;
+    let activeVar = derivePrimaryCurrentVar();
     if (state.manifest && state.manifest.configuration.layers) {
         state.manifest.configuration.layers.forEach(l => {
             if (state.layers[l.id]) activeVar = l.id;
@@ -2281,6 +2386,64 @@ function renderStreamlinesNative(gridData) {
 
 
 
+let gradientScaleLabelsLayoutRaf = null;
+
+/**
+ * Reparte etiquetas da escala entre fila inferior e superior só cando,
+ * medindo no DOM, detectamos solapamento horizontal na fila inferior.
+ */
+function layoutGradientScaleLabels() {
+    if (!els.dynamicScale || els.dynamicScale.classList.contains('hidden')) return;
+    const overlay = els.dynamicScale.querySelector('.scale-labels-overlay');
+    if (!overlay) return;
+    const spans = [...overlay.querySelectorAll('span')];
+    if (spans.length <= 1) return;
+
+    for (const el of spans) el.classList.remove('scale-label--row-top');
+    void overlay.offsetWidth;
+
+    const cRect = overlay.getBoundingClientRect();
+    if (cRect.width < 1) return;
+
+    const items = spans.map(el => {
+        const r = el.getBoundingClientRect();
+        return { el, left: r.left - cRect.left, right: r.right - cRect.left };
+    }).sort((a, b) => a.left - b.left);
+
+    const GAP = 2;
+    let rowBottomRight = -Infinity;
+    let rowTopRight = -Infinity;
+
+    for (const { el, left, right } of items) {
+        const fitsBottom = left >= rowBottomRight + GAP;
+        const fitsTop = left >= rowTopRight + GAP;
+        if (fitsBottom) {
+            rowBottomRight = Math.max(rowBottomRight, right);
+        } else if (fitsTop) {
+            el.classList.add('scale-label--row-top');
+            rowTopRight = Math.max(rowTopRight, right);
+        } else {
+            const overlapB = Math.max(0, rowBottomRight + GAP - left);
+            const overlapT = Math.max(0, rowTopRight + GAP - left);
+            if (overlapT <= overlapB) {
+                el.classList.add('scale-label--row-top');
+                rowTopRight = Math.max(rowTopRight, right);
+            } else {
+                rowBottomRight = Math.max(rowBottomRight, right);
+            }
+        }
+    }
+}
+
+function scheduleGradientScaleLabelsLayout() {
+    if (!els.dynamicScale) return;
+    if (gradientScaleLabelsLayoutRaf != null) cancelAnimationFrame(gradientScaleLabelsLayoutRaf);
+    gradientScaleLabelsLayoutRaf = requestAnimationFrame(() => {
+        gradientScaleLabelsLayoutRaf = null;
+        layoutGradientScaleLabels();
+    });
+}
+
 /**
  * Update Dynamic Scale UI
  */
@@ -2315,6 +2478,7 @@ function updateDynamicScale(varId) {
             </div>
         </div>
     `;
+    scheduleGradientScaleLabelsLayout();
 }
 
 const COLOR_RAMPS = {
