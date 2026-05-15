@@ -11,6 +11,8 @@ const state = {
     overlayOpacity: 0.45,
 
     vectorMode: 'particles', // scalar vs vector vs barb vs particles
+    /** Pausa solo a animación das partículas (non cambia a modo vector) */
+    particlesPaused: false,
 
     gridDataMap: {},       // Map of varId -> grid data
     gridUrlMap: {},        // Map of varId -> dataUrl (canvas image)
@@ -335,14 +337,14 @@ function initMap() {
         leafletScaleRoot.style.margin = '0';
     }
 
-    L.Control.ParticlesToggle = L.Control.extend({
+    L.Control.ParticlesPause = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function (map) {
             const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom leaflet-control-particles');
             const btn = L.DomUtil.create('a', '', container);
             btn.href = '#';
-            btn.title = 'Alternar Modo Partículas de Vento';
-            btn.innerHTML = '💨';
+            btn.title = 'Pausar animación do vento (partículas)';
+            btn.innerHTML = '⏸️';
             btn.style.backgroundColor = '#ffffff';
             btn.style.textDecoration = 'none';
 
@@ -350,13 +352,16 @@ function initMap() {
                 L.DomEvent.stopPropagation(e);
                 L.DomEvent.preventDefault(e);
 
-                if (state.vectorMode === 'vector') {
-                    state.vectorMode = 'particles';
+                const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
+                if (!isWind || state.vectorMode !== 'particles' || !state.particleEngine) return;
+
+                if (state.particlesPaused) {
+                    resumeParticlesAfterContextChange();
                 } else {
-                    state.vectorMode = 'vector';
+                    state.particlesPaused = true;
+                    state.particleEngine.freezeAnimation();
+                    syncParticlesPauseButton();
                 }
-                updateModeVisibility(); // Update button styling
-                updateImage();
             });
 
             state.particlesControlButton = btn;
@@ -364,7 +369,7 @@ function initMap() {
             return container;
         }
     });
-    state.particlesControl = new L.Control.ParticlesToggle();
+    state.particlesControl = new L.Control.ParticlesPause();
     state.particlesControl.addTo(state.map);
 
     // Add Variable Selector Control
@@ -437,13 +442,20 @@ function initMap() {
             if (state.particleEngine) {
                 state.particleEngine.canvas = canvas;
                 state.particleEngine.ctx = canvas.getContext('2d');
-                state.particleEngine.initParticles();
+                if (!state.particlesPaused) {
+                    state.particleEngine.initParticles();
+                }
             }
         }
     });
     // Instantiate and add overlay
     const overlay = new canvasOverlay();
     overlay.addTo(state.map);
+
+    /** Ao cambiar só zoom: reanudar partículas se estaban en pausa */
+    state.map.on('zoomend', () => {
+        resumeParticlesAfterContextChange();
+    });
 
     // Re-render grid overlays on zoom or pan to adjust detail and handle domain switching
     state.map.on('moveend zoomend dragend', () => {
@@ -723,12 +735,14 @@ function setupControls() {
 
     // Listeners
     els.dateSelector.onchange = (e) => {
+        resumeParticlesAfterContextChange();
         state.currentDate = e.target.value;
         updateAvailableHours();
         updateImage();
     };
 
     els.timeSelector.onchange = (e) => {
+        resumeParticlesAfterContextChange();
         const selectedHour = parseInt(e.target.value, 10);
         const index = state.availableHours.indexOf(selectedHour);
         if (index !== -1) {
@@ -1114,12 +1128,44 @@ function updateModeVisibility() {
 
     if (state.particlesControlContainer) {
         state.particlesControlContainer.style.display = isWind ? 'block' : 'none';
+        syncParticlesPauseButton();
+    }
+}
 
-        if (state.vectorMode === 'particles') {
-            state.particlesControlButton.style.backgroundColor = '#e1f0fa';
-        } else {
-            state.particlesControlButton.style.backgroundColor = '#ffffff';
-        }
+/** Reanuda animación de partículas (data/hora/zoom ou botón). */
+function resumeParticlesAfterContextChange() {
+    if (!state.particlesPaused) {
+        syncParticlesPauseButton();
+        return;
+    }
+    state.particlesPaused = false;
+    syncParticlesPauseButton();
+    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
+    const showParticles = (state.vectorMode === 'particles' && isWind);
+    if (state.particleEngine && showParticles && state.gridDataMap[state.currentVar] &&
+        state.gridDataMap[state.currentVar].grid && state.gridDataMap[state.currentVar].grid.twsKn) {
+        state.particleEngine.unfreezeAnimation();
+    }
+}
+
+function syncParticlesPauseButton() {
+    const btn = state.particlesControlButton;
+    if (!btn) return;
+    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
+    if (!isWind || state.vectorMode !== 'particles') {
+        btn.title = 'Pausar animación do vento (partículas)';
+        btn.innerHTML = '⏸️';
+        btn.style.backgroundColor = '#ffffff';
+        return;
+    }
+    if (state.particlesPaused) {
+        btn.title = 'Reanudar animación do vento';
+        btn.innerHTML = '▶️';
+        btn.style.backgroundColor = '#cce8ff';
+    } else {
+        btn.title = 'Pausar animación do vento (partículas)';
+        btn.innerHTML = '⏸️';
+        btn.style.backgroundColor = '#ffffff';
     }
 }
 
@@ -1462,7 +1508,9 @@ function updateImage() {
         if (showParticles && state.gridDataMap[state.currentVar] && state.gridDataMap[state.currentVar].grid && state.gridDataMap[state.currentVar].grid.twsKn) {
             state.particleEngine.setGrid(state.gridDataMap[state.currentVar]);
         } else {
+            state.particlesPaused = false;
             state.particleEngine.stop();
+            syncParticlesPauseButton();
         }
     }
 
@@ -1852,6 +1900,7 @@ function updateTimeSelectorUI() {
 }
 
 function stepDay(dir) {
+    resumeParticlesAfterContextChange();
     const dates = Array.from(els.dateSelector.options).map(o => o.value);
     const currentDateIdx = dates.indexOf(state.currentDate);
     
@@ -1879,6 +1928,7 @@ function stepDay(dir) {
 }
 
 function stepTime(dir) {
+    resumeParticlesAfterContextChange();
     let newIdx = state.currentHourIndex + dir;
     const max = state.availableHours.length;
 
@@ -1970,15 +2020,35 @@ class WindParticles {
     }
 
     setGrid(gridData) {
-        const grid = gridData.grid;
-        if (this.grid === grid && this.animFrame) return;
-        this.grid = grid;
-        if (grid) {
-            this.initParticles();
-            this.start();
-        } else {
+        const grid = gridData && gridData.grid;
+        if (!gridData || !grid) {
+            this.grid = null;
             this.stop();
+            return;
         }
+        if (this.grid === grid && (this.animFrame || state.particlesPaused)) return;
+
+        this.grid = grid;
+        this.initParticles();
+        if (state.particlesPaused) {
+            if (this.animFrame) {
+                cancelAnimationFrame(this.animFrame);
+                this.animFrame = null;
+            }
+            return;
+        }
+        this.start();
+    }
+
+    freezeAnimation() {
+        if (this.animFrame) {
+            cancelAnimationFrame(this.animFrame);
+            this.animFrame = null;
+        }
+    }
+
+    unfreezeAnimation() {
+        if (this.grid && !this.animFrame) this.start();
     }
 
     initParticles() {
@@ -2010,6 +2080,7 @@ class WindParticles {
 
     render(time) {
         if (!state.map || !this.grid || !this.canvas || !this.canvas.width || !this.ctx) return;
+        if (state.particlesPaused) return;
 
         let deltaTime = time - (this.lastTime || time);
         this.lastTime = time;
@@ -2098,7 +2169,11 @@ class WindParticles {
         }
         this.ctx.stroke();
 
-        this.animFrame = requestAnimationFrame((newTime) => this.render(newTime));
+        if (!state.particlesPaused) {
+            this.animFrame = requestAnimationFrame((newTime) => this.render(newTime));
+        } else {
+            this.animFrame = null;
+        }
     }
 }
 
