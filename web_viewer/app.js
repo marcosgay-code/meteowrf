@@ -9,6 +9,8 @@ const state = {
     currentZoom: '',
     currentStation: '',
     overlayOpacity: 0.45,
+    /** Opacidade das capas de datos WRF (escalares, vectores, nubes…), 0–1 */
+    variableLayerOpacity: 1,
 
     vectorMode: 'particles', // scalar vs vector vs barb vs particles
     /** Pausa solo a animación das partículas (non cambia a modo vector) */
@@ -94,6 +96,7 @@ const els = {
     varGroup: null,
     modeGroup: document.getElementById('mode-group'),
     opacitySlider: document.getElementById('opacity-slider'),
+    variableOpacitySlider: document.getElementById('variable-opacity-slider'),
     overlayContainer: document.getElementById('overlay-container'),
     timelineControls: document.querySelector('.timeline-controls'),
 
@@ -191,10 +194,27 @@ function formatLastUpdatedForDisplay(raw) {
     return `${dayNum} ${monthLbl} ${hh}:${min}`;
 }
 
+const LS_OPACITY_MAP_KEY = 'meteowrf_layer_opacity';
+const LS_OPACITY_VARS_KEY = 'meteowrf_variable_layer_opacity';
+
+/** Borra todo localStorage salvo as dúas opacidades. */
+function pruneLocalStorageKeepOpacityOnly() {
+    try {
+        const mapOp = localStorage.getItem(LS_OPACITY_MAP_KEY);
+        const varOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
+        localStorage.clear();
+        if (mapOp !== null) localStorage.setItem(LS_OPACITY_MAP_KEY, mapOp);
+        if (varOp !== null) localStorage.setItem(LS_OPACITY_VARS_KEY, varOp);
+    } catch (e) {
+        /* modo privado / bloqueo */
+    }
+}
+
 // --- Initialization ---
 
 async function init() {
     try {
+        pruneLocalStorageKeepOpacityOnly();
         if (els.lastUpdated) els.lastUpdated.textContent = 'Cargando…';
         // Añadimos un timestamp para evitar que el navegador guarde el archivo en caché
         const resp = await fetch('manifest.json?t=' + new Date().getTime());
@@ -771,7 +791,7 @@ function setupControls() {
     };
 
     if (els.opacitySlider) {
-        const savedOpacity = localStorage.getItem('meteowrf_layer_opacity');
+        const savedOpacity = localStorage.getItem(LS_OPACITY_MAP_KEY);
         if (savedOpacity !== null) {
             els.opacitySlider.value = savedOpacity;
             state.overlayOpacity = savedOpacity / 100;
@@ -781,10 +801,25 @@ function setupControls() {
         }
         els.opacitySlider.oninput = (e) => {
             state.overlayOpacity = e.target.value / 100;
-            localStorage.setItem('meteowrf_layer_opacity', e.target.value);
+            localStorage.setItem(LS_OPACITY_MAP_KEY, e.target.value);
             if (state.baseLayer) {
                 state.baseLayer.setOpacity(state.overlayOpacity);
             }
+        };
+    }
+
+    if (els.variableOpacitySlider) {
+        const savedVarOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
+        if (savedVarOp !== null) {
+            const v = Math.max(10, Math.min(100, parseInt(savedVarOp, 10) || 100));
+            els.variableOpacitySlider.value = String(v);
+            state.variableLayerOpacity = v / 100;
+        }
+        els.variableOpacitySlider.oninput = (e) => {
+            const v = Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 100));
+            state.variableLayerOpacity = v / 100;
+            localStorage.setItem(LS_OPACITY_VARS_KEY, String(v));
+            syncVariableDataLayersOpacity();
         };
     }
 
@@ -1686,10 +1721,37 @@ function updateTooltip(latlng, stationName = null) {
     els.windTooltip.classList.add('hidden');
 }
 
+/** Aplica state.variableLayerOpacity a imageOverlays, liñas de vento e canvas de partículas */
+function syncVariableDataLayersOpacity() {
+    if (!state.map) return;
+    const o = state.variableLayerOpacity;
+    Object.keys(state.scalarOverlayByVarId).forEach(vid => {
+        const lyr = state.scalarOverlayByVarId[vid];
+        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
+    });
+    if (state.vectorOverlay && state.vectorOverlay.setOpacity) {
+        state.vectorOverlay.setOpacity(o);
+    }
+    Object.keys(state.dynamicOverlays).forEach(k => {
+        const lyr = state.dynamicOverlays[k];
+        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
+    });
+    if (state.vectorLayerGroup) {
+        state.vectorLayerGroup.eachLayer(lyr => {
+            if (lyr && lyr.setStyle) {
+                lyr.setStyle({ opacity: o, fillOpacity: o });
+            }
+        });
+    }
+    const windCanvas = document.getElementById('wind-particles');
+    if (windCanvas) windCanvas.style.opacity = String(o);
+}
+
 function updateMapOverlays() {
     if (!state.map) return;
 
     const bounds = getDomainBounds();
+    const varOp = state.variableLayerOpacity;
 
     // If no domain (bounds is null), hide all domain-specific overlays
     if (!bounds || !state.currentDomain) {
@@ -1733,7 +1795,7 @@ function updateMapOverlays() {
             !!gridUrl,
             gridUrl,
             bounds,
-            { opacity: 1.0, zIndex: zScalar }
+            { opacity: varOp, zIndex: zScalar }
         );
         zScalar += 1;
     });
@@ -1748,7 +1810,7 @@ function updateMapOverlays() {
         vecUrl = state.vectorGridUrlMap[state.currentVar] || '';
     }
 
-    state.vectorOverlay = updateLeafletOverlay(state.vectorOverlay, showVector, vecUrl, bounds, { opacity: 1.0, zIndex: 30 });
+    state.vectorOverlay = updateLeafletOverlay(state.vectorOverlay, showVector, vecUrl, bounds, { opacity: varOp, zIndex: 30 });
 
     if (!state.vectorLayerGroup) {
         state.vectorLayerGroup = L.layerGroup().addTo(state.map);
@@ -1768,7 +1830,7 @@ function updateMapOverlays() {
         if (state.activeScalarVarIds.includes(layer.id)) showLayer = false;
 
         let layerUrl = state.gridUrlMap[layer.id] || '';
-        state.dynamicOverlays[layer.id] = updateLeafletOverlay(state.dynamicOverlays[layer.id], showLayer, layerUrl, bounds, { opacity: 1.0, zIndex: 40 });
+        state.dynamicOverlays[layer.id] = updateLeafletOverlay(state.dynamicOverlays[layer.id], showLayer, layerUrl, bounds, { opacity: varOp, zIndex: 40 });
     });
 
     // 4. Scale
@@ -1786,6 +1848,8 @@ function updateMapOverlays() {
         els.dynamicScale.classList.add('hidden');
         syncDynamicScaleInteractiveAttrs();
     }
+
+    syncVariableDataLayersOpacity();
 }
 
 function getActiveScalarVarId() {
@@ -2419,10 +2483,12 @@ function renderStreamlinesNative(gridData) {
     }
 
     const color = 'rgba(0, 0, 0, 0.75)';
+    const lineOp = state.variableLayerOpacity;
 
     // MultiPolyline es increíblemente eficiente para miles de segmentos
     L.polyline(lines, {
         color: color,
+        opacity: lineOp,
         weight: 1.0,  // Grosor SVG estrictamente nativo a 1 pixel de pantalla
         lineCap: 'round',
         lineJoin: 'round',
@@ -2454,6 +2520,7 @@ function renderStreamlinesNative(gridData) {
     if (arrowLines.length > 0) {
         L.polyline(arrowLines, {
             color: color,
+            opacity: lineOp,
             weight: 1.5,
             lineCap: 'round',
             lineJoin: 'round',

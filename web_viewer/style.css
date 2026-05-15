@@ -1151,7 +1151,7 @@ input[type=range] {
     margin-top: 0.4rem;
     display: none;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.45rem;
 }
 
 .opacity-container.opacity-container--below-timeline {
@@ -1169,7 +1169,8 @@ input[type=range] {
     color: white;
 }
 .opacity-label { font-size: 0.75rem; color: var(--text-secondary); }
-#opacity-slider { width: 100%; }
+#opacity-slider,
+#variable-opacity-slider { width: 100%; }
 
 /* Etiqueta de variable activa sobre el mapa */
 .current-var-label {
