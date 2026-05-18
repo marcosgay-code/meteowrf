@@ -1362,8 +1362,9 @@ body.theme-simple .sidebar-bordes-widget {
     display: none !important;
 }
 
-/* Brand bar: modo simple, enlace a meteonube.es */
-    display: none;
+/* Barra marca meteonube.es (só se insere en modo simple) */
+.simple-top-brand {
+    display: flex;
     flex-shrink: 0;
     justify-content: center;
     align-items: center;
@@ -1371,10 +1372,6 @@ body.theme-simple .sidebar-bordes-widget {
     background-color: var(--bg-panel);
     border-bottom: 1px solid var(--border);
     z-index: 5;
-}
-
-body.theme-simple .simple-top-brand {
-    display: flex;
 }
 
 .simple-top-brand-link {

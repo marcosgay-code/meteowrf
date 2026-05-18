@@ -1575,6 +1575,37 @@ function populateVars() {
 }
 
 let __appStarted = false;
+
+/** Barra Meteonube arriba: só no modo simple (non existe no HTML en vuelo). */
+function ensureSimpleTopBrand() {
+    const root = document.querySelector('.app-root');
+    if (!root || root.querySelector('.simple-top-brand')) return;
+    const hdr = document.createElement('header');
+    hdr.className = 'simple-top-brand';
+    hdr.setAttribute('aria-label', 'Meteonube');
+    const a = document.createElement('a');
+    a.href = 'https://meteonube.es';
+    a.className = 'simple-top-brand-link';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = 'meteonube.es';
+    const spanIcon = document.createElement('span');
+    spanIcon.className = 'simple-top-brand-icon';
+    spanIcon.setAttribute('aria-hidden', 'true');
+    spanIcon.textContent = '⛅';
+    const spanText = document.createElement('span');
+    spanText.className = 'simple-top-brand-text';
+    spanText.textContent = 'Meteonube';
+    a.appendChild(spanIcon);
+    a.appendChild(spanText);
+    hdr.appendChild(a);
+    root.insertBefore(hdr, root.firstChild);
+}
+
+function removeSimpleTopBrand() {
+    document.querySelector('.app-root .simple-top-brand')?.remove();
+}
+
 function applyUiModeAndStart(mode) {
     if (__appStarted) return;
     __appStarted = true;
@@ -1594,6 +1625,9 @@ function applyUiModeAndStart(mode) {
         state.layers.highfrac = false;
         state.layers.provinces = false;
         state.activeScalarVarIds = [];
+        ensureSimpleTopBrand();
+    } else {
+        removeSimpleTopBrand();
     }
     init();
 }
