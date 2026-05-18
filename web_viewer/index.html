@@ -28,13 +28,31 @@
     <title>Meteonube</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=21">
+    <link rel="stylesheet" href="style.css?v=26">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 
 <body>
+    <div id="mode-picker-overlay" class="mode-picker-overlay hidden" role="dialog" aria-labelledby="mode-picker-title" aria-modal="true">
+        <div class="mode-picker-card">
+            <h2 id="mode-picker-title">⛅ Meteonube</h2>
+            <div class="mode-picker-actions">
+                <button type="button" class="mode-picker-btn mode-picker-btn--simple" id="mode-pick-simple">Modo simple</button>
+                <button type="button" class="mode-picker-btn mode-picker-btn--flight" id="mode-pick-flight">Modo vuelo</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-root">
+    <header class="simple-top-brand" aria-label="Meteonube">
+        <a href="https://meteonube.es" class="simple-top-brand-link" target="_blank" rel="noopener noreferrer" title="meteonube.es">
+            <span class="simple-top-brand-icon" aria-hidden="true">⛅</span>
+            <span class="simple-top-brand-text">Meteonube</span>
+        </a>
+    </header>
+
     <div class="app-container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -54,12 +72,18 @@
                     <div class="btn-cluster" id="vars-clouds"></div>
                     <div class="btn-cluster" id="vars-wind"></div>
                     <div class="btn-cluster" id="vars-other"></div>
-                    <label class="btn-toggle btn-toggle--inverse"><input type="checkbox" id="toggle-provinces" checked><span>Bordes</span></label>
+                    <div class="sidebar-bordes-widget">
+                        <label class="btn-toggle btn-toggle--inverse"><input type="checkbox" id="toggle-provinces" checked><span>Bordes</span></label>
+                    </div>
                 </div>
             </div>
 
 
             <div class="status-panel" id="status-panel"></div>
+
+            <div class="sidebar-mode-row">
+                <button type="button" class="btn-mode-switch" id="btn-switch-ui-mode">Vista simple</button>
+            </div>
 
             <!-- Pie de página de autoría (oculto en pantallas hasta 1024px vía CSS) -->
             <div class="sidebar-attribution">
@@ -132,6 +156,7 @@
 
         </div>
     </div>
+    </div><!-- /.app-root -->
 
     <!-- Special Views Overlay (Sounding/Meteogram) - Moved to Root for Isolation -->
     <div id="overlay-container" class="overlay-container hidden">
@@ -142,7 +167,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=41"></script>
 </body>
 
 </html>

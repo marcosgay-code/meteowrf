@@ -1,4 +1,11 @@
+/** simple = só choiva, nube (%), temperatura e vento superficie · flight = comportamento actual */
+const LS_UI_MODE_KEY = 'meteonube_ui_mode';
+const SIMPLE_SCALAR_IDS = ['sfcwind', 't2m'];
+const SIMPLE_LAYER_IDS = ['rain', 'blcloudpct'];
+
 const state = {
+    /** @type {'flight'|'simple'} */
+    uiMode: 'flight',
     manifest: null,
     currentDomain: 'd02',
     currentDate: null,
@@ -51,7 +58,7 @@ const state = {
     /** Pulsar escala de cores: mostrar/ocultar metadatos da escala e (≤1024px) sidebar por riba da liña tempo */
     scaleChromeExpanded: true,
 
-    /** Variables escalares activas (máx. 2): como máximo unha de vento e unha de nubes */
+    /** Variables escalares activas: modo flight máx. 2 (vento + nubes); modo simple só 1 */
     activeScalarVarIds: []
 };
 
@@ -146,8 +153,26 @@ function applyDerivedCurrentVar() {
     }
 }
 
-/** Alternar chip de variable: máximo 2 activas; como máximo unha de vento e unha de nubes */
+/** Alternar chip de variable: modo simple = unha sola entre capas (choiva/nube) e escalares */
 function toggleScalarVariable(varId) {
+    if (state.uiMode === 'simple') {
+        const idx = state.activeScalarVarIds.indexOf(varId);
+        if (idx !== -1) {
+            state.activeScalarVarIds.splice(idx, 1);
+        } else {
+            state.activeScalarVarIds = [varId];
+            SIMPLE_LAYER_IDS.forEach(lid => {
+                state.layers[lid] = false;
+            });
+        }
+        applyDerivedCurrentVar();
+        syncVarButtonsActive();
+        syncTogglesUI();
+        updateModeVisibility();
+        updateImage();
+        return;
+    }
+
     const idx = state.activeScalarVarIds.indexOf(varId);
     if (idx !== -1) {
         state.activeScalarVarIds.splice(idx, 1);
@@ -197,17 +222,49 @@ function formatLastUpdatedForDisplay(raw) {
 const LS_OPACITY_MAP_KEY = 'meteowrf_layer_opacity';
 const LS_OPACITY_VARS_KEY = 'meteowrf_variable_layer_opacity';
 
-/** Borra todo localStorage salvo as dúas opacidades. */
+/** Borra todo localStorage salvo opacidades e modo UI. */
 function pruneLocalStorageKeepOpacityOnly() {
     try {
         const mapOp = localStorage.getItem(LS_OPACITY_MAP_KEY);
         const varOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
+        const uiMode = localStorage.getItem(LS_UI_MODE_KEY);
         localStorage.clear();
         if (mapOp !== null) localStorage.setItem(LS_OPACITY_MAP_KEY, mapOp);
         if (varOp !== null) localStorage.setItem(LS_OPACITY_VARS_KEY, varOp);
+        if (uiMode !== null) localStorage.setItem(LS_UI_MODE_KEY, uiMode);
     } catch (e) {
         /* modo privado / bloqueo */
     }
+}
+
+function readUiModeFromUrl() {
+    const p = new URLSearchParams(window.location.search);
+    const m = (p.get('modo') || p.get('mode') || '').toLowerCase();
+    if (m === 'simple' || m === 'sencillo') return 'simple';
+    if (m === 'flight' || m === 'vuelo') return 'flight';
+    return null;
+}
+
+function persistUiMode(mode) {
+    try {
+        localStorage.setItem(LS_UI_MODE_KEY, mode);
+    } catch (e) { /* */ }
+}
+
+function resolveSavedUiMode() {
+    try {
+        const s = localStorage.getItem(LS_UI_MODE_KEY);
+        if (s === 'simple' || s === 'flight') return s;
+    } catch (e) { /* */ }
+    return null;
+}
+
+function shouldForceModePickerOverlay() {
+    const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (p.has('elegir')) return true;
+    const modo = (p.get('modo') || '').toLowerCase();
+    if (modo === 'elixe' || modo === 'elegir' || modo === 'picker') return true;
+    return false;
 }
 
 // --- Initialization ---
@@ -232,6 +289,7 @@ async function init() {
         state.particleEngine = new WindParticles(null);
         initMap();
         setupControls();
+        wireModeFooter();
         updateUIForType();
         updateImage();
         updateMarkers();
@@ -907,6 +965,7 @@ function setupControls() {
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
     sortedLayers.forEach(layer => {
+        if (state.uiMode === 'simple' && !SIMPLE_LAYER_IDS.includes(layer.id)) return;
         if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -1114,8 +1173,10 @@ function setupScaleGradientToggle() {
 }
 
 function updateUIForType() {
-    // Map controls always visible
-    if (els.varGroup) els.varGroup.classList.remove('hidden');
+    // Map controls always visible (selector no mapa: só modo vuelo)
+    if (els.varGroup) {
+        els.varGroup.classList.toggle('hidden', state.uiMode === 'simple');
+    }
     document.getElementById('overlays-group').classList.remove('hidden');
     document.getElementById('scale-container').classList.remove('hidden');
 
@@ -1218,8 +1279,22 @@ function syncTogglesUI() {
 function setWeatherLayer(selectedId) {
     if (!selectedId) return;
 
-    // Toggle the selected layer independently
     state.layers[selectedId] = !state.layers[selectedId];
+
+    if (state.uiMode === 'simple' && SIMPLE_LAYER_IDS.includes(selectedId)) {
+        if (state.layers[selectedId]) {
+            state.activeScalarVarIds = [];
+            SIMPLE_LAYER_IDS.forEach(lid => {
+                if (lid !== selectedId) state.layers[lid] = false;
+            });
+        }
+        applyDerivedCurrentVar();
+        syncVarButtonsActive();
+        syncTogglesUI();
+        updateModeVisibility();
+        updateImage();
+        return;
+    }
 
     // Mutual exclusivity for cloud layers
     if (state.layers[selectedId] && isCloudVariable(selectedId)) {
@@ -1385,6 +1460,7 @@ function populateVarButtons() {
 
     vars.forEach(v => {
         if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
+        if (state.uiMode === 'simple' && !SIMPLE_SCALAR_IDS.includes(v.id)) return;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn-toggle';
@@ -1457,34 +1533,116 @@ function populateVars() {
     state.activeScalarVarIds = state.activeScalarVarIds.filter(
         id => vars.some(v => v.id === id) && !HIDDEN_UI_VAR_IDS.has(id)
     );
+    if (state.uiMode === 'simple') {
+        const allow = new Set(SIMPLE_SCALAR_IDS);
+        state.activeScalarVarIds = state.activeScalarVarIds.filter(id => allow.has(id));
+        if (state.activeScalarVarIds.length > 1) {
+            state.activeScalarVarIds = [state.activeScalarVarIds[0]];
+        }
+    }
     if (state.activeScalarVarIds.length === 0) {
-        const sfcwind = vars.find(v => v.id === 'sfcwind');
-        if (sfcwind) state.activeScalarVarIds = [sfcwind.id];
-        else {
-            const vis = vars.find(v => !HIDDEN_UI_VAR_IDS.has(v.id));
-            if (vis) state.activeScalarVarIds = [vis.id];
+        if (state.uiMode === 'simple') {
+            state.activeScalarVarIds = [];
+        } else {
+            const sfcwind = vars.find(v => v.id === 'sfcwind');
+            if (sfcwind) state.activeScalarVarIds = [sfcwind.id];
+            else {
+                const vis = vars.find(v => !HIDDEN_UI_VAR_IDS.has(v.id));
+                if (vis) state.activeScalarVarIds = [vis.id];
+            }
         }
     }
 
-    els.varSelector.innerHTML = '';
+    if (els.varSelector) els.varSelector.innerHTML = '';
 
     const noneOpt = document.createElement('option');
     noneOpt.value = 'none';
     noneOpt.textContent = 'Ocultar';
-    els.varSelector.appendChild(noneOpt);
+    if (els.varSelector) els.varSelector.appendChild(noneOpt);
 
     vars.forEach(v => {
         if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
+        if (state.uiMode === 'simple' && !SIMPLE_SCALAR_IDS.includes(v.id)) return;
         const opt = document.createElement('option');
         opt.value = v.id;
         opt.textContent = v.title || v.id;
-        els.varSelector.appendChild(opt);
+        if (els.varSelector) els.varSelector.appendChild(opt);
     });
 
     applyDerivedCurrentVar();
 
     populateVarButtons();
     updateModeVisibility();
+}
+
+function wireModeFooter() {
+    const btn = document.getElementById('btn-switch-ui-mode');
+    if (!btn) return;
+    if (state.uiMode === 'simple') return;
+    btn.textContent = 'Vista simple';
+    btn.title = 'Só choiva, nubes, temperatura e vento en superficie';
+    btn.onclick = () => {
+        persistUiMode('simple');
+        window.location.reload();
+    };
+}
+
+let __appStarted = false;
+function applyUiModeAndStart(mode) {
+    if (__appStarted) return;
+    __appStarted = true;
+    state.uiMode = mode;
+    document.body.classList.toggle('theme-simple', mode === 'simple');
+    document.body.classList.toggle('theme-flight', mode === 'flight');
+    const picker = document.getElementById('mode-picker-overlay');
+    if (picker) picker.classList.add('hidden');
+    if (mode === 'simple') {
+        state.soundingsMode = 'hidden';
+        state.layers.soundings = false;
+        state.layers.takeoffs_names = false;
+        state.layers.rain = true;
+        state.layers.blcloudpct = false;
+        state.layers.lowfrac = false;
+        state.layers.midfrac = false;
+        state.layers.highfrac = false;
+        state.layers.provinces = false;
+        state.activeScalarVarIds = [];
+    }
+    init();
+}
+
+function bootApp() {
+    const fromUrl = readUiModeFromUrl();
+    if (fromUrl) {
+        persistUiMode(fromUrl);
+        applyUiModeAndStart(fromUrl);
+        return;
+    }
+
+    const forcePicker = shouldForceModePickerOverlay();
+    const saved = resolveSavedUiMode();
+    const useSavedFirst = !!saved && !forcePicker;
+    if (useSavedFirst) {
+        applyUiModeAndStart(saved);
+        return;
+    }
+
+    const picker = document.getElementById('mode-picker-overlay');
+    const bSimple = document.getElementById('mode-pick-simple');
+    const bFlight = document.getElementById('mode-pick-flight');
+    if (picker && bSimple && bFlight) {
+        picker.classList.remove('hidden');
+        bSimple.addEventListener('click', () => {
+            persistUiMode('simple');
+            applyUiModeAndStart('simple');
+        });
+        bFlight.addEventListener('click', () => {
+            persistUiMode('flight');
+            applyUiModeAndStart('flight');
+        });
+    } else {
+        applyUiModeAndStart('flight');
+    }
 }
 
 // --- Logic ---
@@ -2063,8 +2221,8 @@ function stepTime(dir) {
     updateImage();
 }
 
-// Start
-init();
+// Start (elixir modo primeiro se non hai URL nin localStorage)
+bootApp();
 
 /**
  * Optimized Wind Particle Engine

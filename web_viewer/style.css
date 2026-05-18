@@ -16,6 +16,17 @@ body {
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-root {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
 }
 
 /* Strict Viewport Lock: Freeze background when modal is open */
@@ -31,7 +42,9 @@ body.has-modal {
 .app-container {
     display: grid;
     grid-template-columns: 380px 1fr;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
+    height: auto;
 }
 
 /* Sidebar */
@@ -1266,5 +1279,157 @@ input[type=range] {
     .sidebar .sidebar-flow {
         margin-bottom: 0;
         padding-bottom: 0;
+    }
+}
+
+/* ——— Modo sencillo / escolla inicial ——— */
+.mode-picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(6px);
+}
+
+.mode-picker-card {
+    max-width: 420px;
+    width: 100%;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.35rem 1.25rem 1rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.mode-picker-card h2 {
+    margin: 0 0 1rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.mode-picker-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.mode-picker-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.mode-picker-btn--simple {
+    background: var(--bg-dark);
+}
+
+.mode-picker-btn--simple:hover {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.mode-picker-btn--flight {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(30, 64, 175, 0.35));
+    border-color: rgba(96, 165, 250, 0.5);
+}
+
+.mode-picker-btn--flight:hover {
+    border-color: var(--accent-hover);
+}
+
+.sidebar-mode-row {
+    flex-shrink: 0;
+}
+
+.btn-mode-switch {
+    width: 100%;
+    appearance: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.btn-mode-switch:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+body.theme-simple #btn-sounding-cycle,
+body.theme-simple #btn-opacity-toggle,
+body.theme-simple #opacity-container {
+    display: none !important;
+}
+
+body.theme-simple #vars-clouds:empty {
+    display: none;
+}
+
+body.theme-simple .sidebar-mode-row,
+body.theme-simple .sidebar-bordes-widget {
+    display: none !important;
+}
+
+/* Brand bar: modo sencillo, enlace a meteonube.es */
+.simple-top-brand {
+    display: none;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+    padding: 0.45rem 0.75rem 0.5rem;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    z-index: 5;
+}
+
+body.theme-simple .simple-top-brand {
+    display: flex;
+}
+
+.simple-top-brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 1.28rem;
+    letter-spacing: -0.02em;
+}
+
+.simple-top-brand-link:hover {
+    color: var(--accent-hover);
+}
+
+.simple-top-brand-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+body.theme-simple .sidebar .logo {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    body.theme-simple .app-container {
+        height: auto !important;
+        min-height: 0;
+        flex: 1;
     }
 }
