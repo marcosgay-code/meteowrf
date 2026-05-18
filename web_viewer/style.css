@@ -1348,29 +1348,6 @@ input[type=range] {
     border-color: var(--accent-hover);
 }
 
-.sidebar-mode-row {
-    flex-shrink: 0;
-}
-
-.btn-mode-switch {
-    width: 100%;
-    appearance: none;
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 0.45rem 0.65rem;
-    font-size: 0.78rem;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    color: var(--text-secondary);
-    background: transparent;
-}
-
-.btn-mode-switch:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
 body.theme-simple #btn-sounding-cycle,
 body.theme-simple #btn-opacity-toggle,
 body.theme-simple #opacity-container {
@@ -1381,13 +1358,11 @@ body.theme-simple #vars-clouds:empty {
     display: none;
 }
 
-body.theme-simple .sidebar-mode-row,
 body.theme-simple .sidebar-bordes-widget {
     display: none !important;
 }
 
-/* Brand bar: modo sencillo, enlace a meteonube.es */
-.simple-top-brand {
+/* Brand bar: modo simple, enlace a meteonube.es */
     display: none;
     flex-shrink: 0;
     justify-content: center;

@@ -289,7 +289,6 @@ async function init() {
         state.particleEngine = new WindParticles(null);
         initMap();
         setupControls();
-        wireModeFooter();
         updateUIForType();
         updateImage();
         updateMarkers();
@@ -1573,18 +1572,6 @@ function populateVars() {
 
     populateVarButtons();
     updateModeVisibility();
-}
-
-function wireModeFooter() {
-    const btn = document.getElementById('btn-switch-ui-mode');
-    if (!btn) return;
-    if (state.uiMode === 'simple') return;
-    btn.textContent = 'Vista simple';
-    btn.title = 'Só choiva, nubes, temperatura e vento en superficie';
-    btn.onclick = () => {
-        persistUiMode('simple');
-        window.location.reload();
-    };
 }
 
 let __appStarted = false;
