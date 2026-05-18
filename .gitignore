@@ -1,5 +1,6 @@
 # Ignorar datos meteorológicos pesados y salidas de ejecución
 WRF_OUT/
+/WRF_OUT
 gfs.*
 met_em.*
 geo_em.*
