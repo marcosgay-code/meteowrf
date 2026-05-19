@@ -39,6 +39,8 @@ pos_process/force_upload.sh
 
 # Archivos web generados dinámicamente
 web_viewer/manifest.json
+# Copia local de respaldo del antiguo app.js (no versionar)
+web_viewer/js/app.backup.js
 
 # Archivos de performance
 pos_process/logs/

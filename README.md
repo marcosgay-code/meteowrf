@@ -117,15 +117,20 @@ pos_process/
   │   └── ... 
 
 web_viewer/
-  ├── index.html          # Carga app.js (clásico) + js/main.js (módulo ES6)
+  ├── index.html          # Punto de entrada: js/main.js (módulo ES6)
   ├── style.css
-  ├── app.js              # Arranque, datos WRF, renderizado de grids (~1k líneas)
   ├── manifest.json       # Generado por gen_manifest.py (no versionado en git)
   ├── run_server.sh
   └── js/
-      ├── main.js         # Orquestador: conecta módulos con app.js
+      ├── main.js         # Arranque único
+      ├── boot.js         # Modo simple/vuelo e inicialización
+      ├── dom.js          # Referencias DOM (els)
       ├── store.js        # Estado global (state)
       ├── utils.js        # Constantes, rampas de color, helpers
+      ├── data.js         # Manifest, fetch de grids, caché
+      ├── view.js         # Orquestación da vista (refreshView)
+      ├── raster.js       # Grids → canvas / dataURL
+      ├── vectors.js      # Streamlines Leaflet
       ├── particles.js    # Animación de partículas de viento
       ├── ui.js           # Interfaz: timeline, sondeos, toggles, escala
       └── map.js          # Mapa Leaflet, dominios, overlays
@@ -205,25 +210,30 @@ Para facilitar la visualización de los productos generados sin navegar por el s
 
 ### Arquitectura del frontend (modular)
 
-El visor se cargó en **módulos ES6** manteniendo compatibilidad con un núcleo en script clásico:
+El visor es una aplicación **ES modules** con un solo punto de entrada:
 
-1. **`index.html`** carga primero `app.js` y después `js/main.js` (`type="module"`).
-2. **`main.js`** importa `store`, `utils`, `particles`, `ui` y `map`, y llama a `window.__appReady(...)` para conectar todo con `app.js`.
-3. **`app.js`** conserva la lógica que aún no está extraída: carga de grids JSON, generación de capas raster/vectoriales, `updateImage()` y arranque (`bootApp` / `init`).
-4. **`manifest.json`** lo genera `pos_process/gen_manifest.py` y **no se sube a git** (`.gitignore`); en el servidor debe reflejar las fechas que existen realmente en `PLOTS/`.
+1. **`index.html`** carga solo `js/main.js` (`type="module"`).
+2. **`main.js`** registra callbacks en `data.js`, cablea `ui`/`map` vía `boot.js` y llama a `bootApp()`.
+3. **`manifest.json`** lo genera `pos_process/gen_manifest.py` y **no se sube a git** (`.gitignore`); en el servidor debe reflejar las fechas que existen realmente en `PLOTS/`.
 
-**División aproximada de responsabilidades:**
+**División de responsabilidades:**
 
 | Módulo | Rol |
 |--------|-----|
-| `store.js` | Estado único compartido (`state`) |
+| `main.js` | Entrada única |
+| `boot.js` | Modo simple/vuelo, `runStartup`, partículas |
+| `dom.js` | Referencias DOM (`els`) |
+| `store.js` | Estado compartido (`state`) |
 | `utils.js` | Constantes, etiquetas, rampas de color |
-| `particles.js` | Motor de partículas de viento |
-| `ui.js` | Controles, timeline, sondeos, tooltips, modo simple/vuelo |
-| `map.js` | Leaflet, dominios, overlays de imagen |
-| `app.js` | Datos WRF, caché de grids, orquestación con el manifest |
+| `data.js` | Manifest, fetch y caché de grids |
+| `view.js` | `refreshView`, capas Leaflet |
+| `raster.js` | Rasterización escalar (canvas) |
+| `vectors.js` | Streamlines de viento |
+| `particles.js` | Motor de partículas |
+| `ui.js` | Controles, timeline, sondeos, tooltips |
+| `map.js` | Leaflet, dominios, overlays |
 
-Tras publicar cambios en CSS o JS, conviene **incrementar el parámetro `?v=…`** en `index.html` (`app.js` y `style.css`) para evitar caché antigua en los navegadores.
+Tras publicar cambios, incrementa **`?v=…`** en `index.html` (`js/main.js` y `style.css`) para forzar recarga en el navegador.
 
 ### Ejecución del Servidor Web
 Debido a políticas de seguridad de los navegadores (CORS), la aplicación no funciona correctamente abriendo el archivo `index.html` directamente (protocolo `file://`). Se requiere un entorno servidor que sirva el visor y proporcione acceso al interior del directorio de gráficas originadas en pos-proceso.
@@ -259,5 +269,5 @@ Pasos relevantes del flujo:
 **Notas:**
 
 - Los cambios que **no** tocan `web_viewer/` **no** disparan este despliegue (está acotado por `paths` en el workflow).
-- El visor referencia `app.js` y `style.css` con un parámetro **`?v=…`** en `index.html` para mitigar caché del navegador tras publicar; conviene **incrementar ese número** cuando cambies CSS o JS y quieras forzar recarga inmediata en los clientes.
-- Los módulos en `js/` no llevan versión en la URL; al cambiarlos, basta con subir el despliegue y recargar con **Ctrl+Shift+R** (o incrementar también `?v=` de `app.js` si el navegador insiste en caché).
+- El visor referencia `js/main.js` y `style.css` con **`?v=…`** en `index.html` para mitigar caché; incrementa ese número cuando cambies JS o CSS.
+- Tras desplegar, recarga con **Ctrl+Shift+R** si el navegador muestra una versión antigua.

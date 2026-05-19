@@ -3,6 +3,7 @@
 
 RUN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PARENT_DIR="$(dirname "$RUN_DIR")"
+CONFIG_FILE="$PARENT_DIR/config.ini"
 
 # Logging function
 log() {
@@ -17,7 +18,12 @@ error() {
 get_config_value() {
     local section="$1"
     local key="$2" 
-    local config_file="${3:-../config.ini}"
+    local config_file="${3:-$CONFIG_FILE}"
+
+    if [ ! -f "$config_file" ]; then
+        echo ""
+        return
+    fi
     
     # 1. Extraer valor crudo (soporta = y :)
     local line=$(sed -n "/^\[$section\]/,/^\[/p" "$config_file" | \
@@ -69,22 +75,44 @@ get_config_value() {
     echo "$value"
 }
 
-# Function to find PLOTS directory
-find_plots_dir() {
-    local wrfout_dir="$1" # Optional fallback
-    
-    # 1. Priority: Confi.ini (Already interpolated and absolute)
-    local plots_folder=$(get_config_value "paths" "plots_folder")
-    
-    if [ -n "$plots_folder" ]; then
-        # Assume it points to a specific domain inside PLOTS, take dirname
-        local parent_dir=$(dirname "$plots_folder")
-        if [ -d "$parent_dir" ]; then
-            echo "$parent_dir"
-            return 0
+# Enlace PLOTS/plots xa válido ou ruta por defecto do proxecto
+find_plots_from_existing_link() {
+    local link_name link_path target
+    for link_name in PLOTS plots; do
+        link_path="$RUN_DIR/$link_name"
+        if [ -L "$link_path" ]; then
+            target=$(readlink -f "$link_path")
+            if [ -d "$target" ]; then
+                echo "$target"
+                return 0
+            fi
         fi
+    done
+    if [ -d "$PARENT_DIR/WRF_OUT/PLOTS" ]; then
+        echo "$PARENT_DIR/WRF_OUT/PLOTS"
+        return 0
     fi
     return 1
+}
+
+# Function to find PLOTS directory
+find_plots_dir() {
+    # 1. Priority: config.ini (paths.plots_folder)
+    if [ -f "$CONFIG_FILE" ]; then
+        local plots_folder
+        plots_folder=$(get_config_value "paths" "plots_folder" "$CONFIG_FILE")
+        if [ -n "$plots_folder" ]; then
+            local parent_dir
+            parent_dir=$(dirname "$plots_folder")
+            if [ -d "$parent_dir" ]; then
+                echo "$parent_dir"
+                return 0
+            fi
+        fi
+    fi
+
+    # 2. Fallback: enlace existente ou WRF_OUT/PLOTS
+    find_plots_from_existing_link
 }
 
 # Function to setup PLOTS symlink
@@ -95,7 +123,11 @@ setup_plots_link() {
     local plots_dir=$(find_plots_dir)
     
     if [ -z "$plots_dir" ] || [ ! -d "$plots_dir" ]; then
-        error "Directorio PLOTS no encontrado! Revisa config.ini (paths.plots_folder)"
+        if [ ! -f "$CONFIG_FILE" ]; then
+            error "Directorio PLOTS no encontrado! Falta $CONFIG_FILE (paths.plots_folder) ou enlace PLOTS en web_viewer/"
+        else
+            error "Directorio PLOTS no encontrado! Revisa config.ini (paths.plots_folder)"
+        fi
         return 1
     fi
     
@@ -425,13 +457,14 @@ case "$COMMAND" in
         FORCE_RESTART=true
         if stop_web_server; then
             sleep 2
-            if setup_plots_link "$CUSTOM_DIR"; then
-                if start_web_server; then
-                    log "Server restarted successfully"
-                else
-                    error "Failed to restart server"
-                    exit 1
-                fi
+            if ! setup_plots_link "$CUSTOM_DIR"; then
+                log "Warning: PLOTS symlink not configured, web viewer may not work properly"
+            fi
+            if start_web_server; then
+                log "Server restarted successfully"
+            else
+                error "Failed to restart server"
+                exit 1
             fi
         fi
         ;;

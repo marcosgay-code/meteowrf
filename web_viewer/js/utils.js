@@ -1,6 +1,6 @@
 /**
  * Utilidades puras: constantes, ramps de cor e helpers sen DOM/state.
- * Copiado de app.js (paso 2); app.js mantén a súa copia ata o paso 3.
+ * Constantes e utilidades compartidas do visor.
  */
 
 // ============================================

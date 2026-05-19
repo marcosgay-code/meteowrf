@@ -1,6 +1,5 @@
 /**
  * Estado global da aplicación.
- * Copiado de app.js (paso 3); app.js mantén a súa copia ata conectar módulos.
  */
 
 export const state = {

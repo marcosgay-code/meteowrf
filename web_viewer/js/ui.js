@@ -1,6 +1,6 @@
 /**
  * ui.js — interfaz (timeline, tooltips, sondeos, toggles, escala).
- * Depende de store.js, utils.js e initUi() para enlazar con app.js.
+ * Depende de store.js, utils.js e initUi() (cableado desde boot.js).
  */
 import { state, clearGridCache } from './store.js';
 import {
