@@ -1,9 +1,230 @@
 /** simple = só choiva, nube (%), temperatura e vento superficie · flight = comportamento actual */
-const LS_UI_MODE_KEY = 'meteonube_ui_mode';
-const SIMPLE_SCALAR_IDS = ['sfcwind', 't2m'];
-const SIMPLE_LAYER_IDS = ['rain', 'blcloudpct'];
 
-const state = {
+// ============================================
+// PUENTE: estado (store.js) + utils (utils.js) desde main.js
+// ============================================
+
+let appState = null;
+let usingCentralState = false;
+let utilsWired = false;
+let __appBootCalled = false;
+
+// particles.js (módulo ES6 vía main.js)
+let WindParticlesClass = null;
+
+function applyParticlesModule(particlesModule) {
+    if (!particlesModule?.WindParticles || WindParticlesClass) return;
+    WindParticlesClass = particlesModule.WindParticles;
+    console.log('✅ WindParticles cargado desde módulo');
+}
+
+function createParticleEngine() {
+    if (!WindParticlesClass) {
+        console.error('❌ WindParticles non dispoñible (fallou a carga do módulo)');
+        return null;
+    }
+    const engine = new WindParticlesClass(null);
+    engine.setContext({
+        getMap: () => state.map,
+        getParticlesPaused: () => state.particlesPaused,
+        getDomainBounds: () => getDomainBounds()
+    });
+    console.log('✅ particleEngine creado desde módulo externo');
+    return engine;
+}
+// ui.js (módulo ES6 vía main.js)
+let uiModule = null;
+let stepDay, stepTime, updateTooltip, updateMarkers, openSounding, cycleSoundingsMode;
+let applySoundingsModeFromCycle, syncSoundingsCycleUI;
+let toggleScalarVariable, setWeatherLayer, loadImage, updateSoundingImage, updateMeteogramImage;
+let updateDynamicScale, syncVariableDataLayersOpacity, applyScaleChromeVisibility, setupScaleGradientToggle;
+let updateAvailableHours, resumeParticlesAfterContextChange, syncTogglesUI, updateModeVisibility, syncParticlesPauseButton;
+let syncVarButtonsActive, scheduleGradientScaleLabelsLayout, updateCurrentVarLabel, syncDynamicScaleInteractiveAttrs;
+let setupControls, populateDates, populateVars, populateVarButtons, updateUIForType, applyUiModeAndStart, derivePrimaryCurrentVar;
+
+function applyUiModule(ui) {
+    if (!ui || uiModule) return;
+    uiModule = ui;
+    stepDay = ui.stepDay;
+    stepTime = ui.stepTime;
+    updateTooltip = ui.updateTooltip;
+    updateMarkers = ui.updateMarkers;
+    cycleSoundingsMode = ui.cycleSoundingsMode;
+    applySoundingsModeFromCycle = ui.applySoundingsModeFromCycle;
+    syncSoundingsCycleUI = ui.syncSoundingsCycleUI;
+    toggleScalarVariable = ui.toggleScalarVariable;
+    setWeatherLayer = ui.setWeatherLayer;
+    loadImage = ui.loadImage;
+    updateSoundingImage = ui.updateSoundingImage;
+    updateMeteogramImage = ui.updateMeteogramImage;
+    updateDynamicScale = ui.updateDynamicScale;
+    syncVariableDataLayersOpacity = ui.syncVariableDataLayersOpacity;
+    applyScaleChromeVisibility = ui.applyScaleChromeVisibility;
+    setupScaleGradientToggle = ui.setupScaleGradientToggle;
+    updateAvailableHours = ui.updateAvailableHours;
+    resumeParticlesAfterContextChange = ui.resumeParticlesAfterContextChange;
+    syncTogglesUI = ui.syncTogglesUI;
+    updateModeVisibility = ui.updateModeVisibility;
+    syncParticlesPauseButton = ui.syncParticlesPauseButton;
+    syncVarButtonsActive = ui.syncVarButtonsActive;
+    updateCurrentVarLabel = ui.updateCurrentVarLabel;
+    scheduleGradientScaleLabelsLayout = ui.scheduleGradientScaleLabelsLayout;
+    syncDynamicScaleInteractiveAttrs = ui.syncDynamicScaleInteractiveAttrs;
+    setupControls = ui.setupControls;
+    populateDates = ui.populateDates;
+    populateVars = ui.populateVars;
+    populateVarButtons = ui.populateVarButtons;
+    updateUIForType = ui.updateUIForType;
+    applyUiModeAndStart = ui.applyUiModeAndStart;
+    derivePrimaryCurrentVar = ui.derivePrimaryCurrentVar;
+    console.log('✅ UI cargada desde módulo');
+}
+
+// map.js (módulo ES6 vía main.js)
+let mapModule = null;
+let initMap, getDomainBounds, setDomainInternal, getDomainForView, updateDisplayControl, updateLeafletOverlay;
+
+function applyMapModule(map) {
+    if (!map || mapModule) return;
+    mapModule = map;
+    initMap = map.initMap;
+    getDomainBounds = map.getDomainBounds;
+    setDomainInternal = map.setDomainInternal;
+    getDomainForView = map.getDomainForView;
+    updateDisplayControl = map.updateDisplayControl;
+    updateLeafletOverlay = map.updateLeafletOverlay;
+    console.log('✅ Mapa cargado desde módulo');
+}
+
+function wireMapDeps() {
+    if (!mapModule) return;
+    mapModule.initMapModule({
+        els,
+        resumeParticlesAfterContextChange: () => resumeParticlesAfterContextChange(),
+        syncParticlesPauseButton: () => syncParticlesPauseButton(),
+        populateVars: () => populateVars(),
+        updateUIForType: () => updateUIForType(),
+        updateMarkers: () => updateMarkers(),
+        updateImage: () => updateImage()
+    });
+}
+
+function wireUiDeps() {
+    if (!uiModule) return;
+    uiModule.initUi({
+        els,
+        updateImage: () => updateImage(),
+        getDomainForView: () => getDomainForView(),
+        startApp: () => init()
+    });
+}
+
+// Referencias a utils (asígnanse desde js/utils.js vía main.js)
+let LS_UI_MODE_KEY;
+let LS_OPACITY_MAP_KEY;
+let LS_OPACITY_VARS_KEY;
+let SIMPLE_SCALAR_IDS;
+let SIMPLE_LAYER_IDS;
+let VAR_SHORT_LABELS;
+let LAYER_SHORT_LABELS;
+let LAYER_ICONS;
+let VAR_ICONS;
+let HIDDEN_UI_VAR_IDS;
+let WIND_VAR_IDS;
+let CLOUD_VAR_IDS;
+let WIND_SPEED_VAR_IDS;
+let LAYER_ORDER;
+let COLOR_RAMPS;
+let getRampColor;
+let getRampForVariable;
+let formatLastUpdatedForDisplay;
+let getTimeString;
+let scalarVarCategory;
+let isCloudVariable;
+
+function applyUtilsBundle(bundle) {
+    if (!bundle || utilsWired) return;
+
+    LS_UI_MODE_KEY = bundle.LS_UI_MODE_KEY;
+    LS_OPACITY_MAP_KEY = bundle.LS_OPACITY_MAP_KEY;
+    LS_OPACITY_VARS_KEY = bundle.LS_OPACITY_VARS_KEY;
+    SIMPLE_SCALAR_IDS = bundle.SIMPLE_SCALAR_IDS;
+    SIMPLE_LAYER_IDS = bundle.SIMPLE_LAYER_IDS;
+    VAR_SHORT_LABELS = bundle.VAR_SHORT_LABELS;
+    LAYER_SHORT_LABELS = bundle.LAYER_SHORT_LABELS;
+    LAYER_ICONS = bundle.LAYER_ICONS;
+    VAR_ICONS = bundle.VAR_ICONS;
+    HIDDEN_UI_VAR_IDS = bundle.HIDDEN_UI_VAR_IDS;
+    WIND_VAR_IDS = bundle.WIND_VAR_IDS;
+    CLOUD_VAR_IDS = bundle.CLOUD_VAR_IDS;
+    WIND_SPEED_VAR_IDS = bundle.WIND_SPEED_VAR_IDS;
+    LAYER_ORDER = bundle.LAYER_ORDER;
+    COLOR_RAMPS = bundle.COLOR_RAMPS;
+    getRampColor = bundle.getRampColor;
+    formatLastUpdatedForDisplay = bundle.formatLastUpdatedForDisplay;
+    getTimeString = bundle.getTimeString;
+    scalarVarCategory = bundle.scalarVarCategory;
+
+    const isCloudFromUtils = bundle.isCloudVariable;
+    isCloudVariable = (varId) => isCloudFromUtils(varId, state.manifest);
+
+    const getRampFromUtils = bundle.getRampForVariable;
+    getRampForVariable = (varId) => getRampFromUtils(varId, state.manifest);
+
+    utilsWired = true;
+    console.log('✅ Utils centralizados activos (desde utils.js)');
+}
+
+function connectCentralState(centralState) {
+    if (usingCentralState) return;
+
+    console.log('🔄 Conectando con estado centralizado...');
+
+    if (!appState) {
+        appState = centralState;
+    } else {
+        Object.keys(appState).forEach(key => {
+            if (centralState[key] !== undefined && typeof centralState[key] === 'object' && centralState[key] !== null && !Array.isArray(centralState[key])) {
+                Object.assign(centralState[key], appState[key]);
+            } else {
+                centralState[key] = appState[key];
+            }
+        });
+        appState = centralState;
+    }
+
+    usingCentralState = true;
+
+    if (typeof window !== 'undefined') {
+        window.__appState = appState;
+    }
+
+    console.log('✅ Estado centralizado activo');
+}
+
+function tryStartApp() {
+    if (__appBootCalled || !usingCentralState || !utilsWired || !WindParticlesClass || !uiModule) return;
+    __appBootCalled = true;
+    bootApp();
+}
+
+function receiveCentralState(centralState, utilsBundle, particlesModule, ui, map) {
+    if (centralState) connectCentralState(centralState);
+    if (utilsBundle) applyUtilsBundle(utilsBundle);
+    if (particlesModule) applyParticlesModule(particlesModule);
+    if (ui) applyUiModule(ui);
+    if (map) applyMapModule(map);
+    tryStartApp();
+}
+
+if (window.__centralState) {
+    receiveCentralState(window.__centralState, window.__utilsBundle, window.__particlesModule, window.__uiModule, window.__mapModule);
+} else {
+    window.__appReady = receiveCentralState;
+}
+
+// Definición original do state (fallback se main.js non cargou a tempo)
+const _fallbackState = {
     /** @type {'flight'|'simple'} */
     uiMode: 'flight',
     manifest: null,
@@ -19,16 +240,16 @@ const state = {
     /** Opacidade das capas de datos WRF (escalares, vectores, nubes…), 0–1 */
     variableLayerOpacity: 1,
 
-    vectorMode: 'particles', // scalar vs vector vs barb vs particles
-    /** Pausa solo a animación das partículas (non cambia a modo vector) */
+    vectorMode: 'particles',
     particlesPaused: false,
 
-    gridDataMap: {},       // Map of varId -> grid data
-    gridUrlMap: {},        // Map of varId -> dataUrl (canvas image)
-    gridVectorModeMap: {},  // Map of varId -> mode used for vectorGridUrlMap
-    vectorGridUrlMap: {},  // Map of varId -> dataUrl (canvas arrows/barbs)
-    gridLoadingMap: {},    // Map of varId -> url loading
-    gridLoadedUrlMap: {},  // Map of varId -> last loaded JSON URL
+    gridDataMap: {},
+    gridUrlMap: {},
+    gridVectorModeMap: {},
+    vectorGridUrlMap: {},
+    gridLoadingMap: {},
+    gridLoadedUrlMap: {},
+    gridFailedUrlMap: {},
 
     layers: {
         blcloudpct: false,
@@ -46,52 +267,44 @@ const state = {
     baseLayer: null,
     scalarOverlayByVarId: {},
     vectorOverlay: null,
-    dynamicOverlays: {}, // Store L.imageOverlay by layer id
+    dynamicOverlays: {},
     markers: [],
     clickMarker: null,
     isTooltipPinned: false,
     isInteractionLocked: false,
 
-    /** Ciclo 🪂 timeline: dots_blue → names_green (etiquetas) → hidden */
     soundingsMode: 'dots_blue',
-
-    /** Pulsar escala de cores: mostrar/ocultar metadatos da escala e (≤1024px) sidebar por riba da liña tempo */
     scaleChromeExpanded: true,
+    activeScalarVarIds: [],
 
-    /** Variables escalares activas: modo flight máx. 2 (vento + nubes); modo simple só 1 */
-    activeScalarVarIds: []
+    particlesControlButton: null,
+    particlesControlContainer: null,
+    particlesControl: null,
+    zoomIndicator: null,
+    vectorLayerGroup: null
 };
 
-const VAR_SHORT_LABELS = {
-    sfcwind: '',
-    wind1500: '1.5',
-    wind2000: '2',
-    wind2500: '2.5',
-    wind3000: '3',
-    wblmaxmin: '',
-    hglider: 'Teito',
-    wstar: 'Térmica',
-    cape: 'CAPE',
-    zblcl: 'B. cuberta',
-    zsfclcl: 'Base',
-    t2m: '🌡️'
-};
-const LAYER_SHORT_LABELS = {
-    lowfrac: 'Baixa', midfrac: 'Media', highfrac: 'Alta',
-    blcloudpct: '', rain: '🌧️'
-};
-const LAYER_ICONS = { blcloudpct: 'icons/nube.svg?v=1' };
-const VAR_ICONS = {
-    wblmaxmin: 'icons/converxencia.png?v=1',
-    sfcwind:   'icons/viento.png?v=1'
-};
-/** Non mostrar na UI (chips nin despregable mapa); seguen no manifest/backend */
-const HIDDEN_UI_VAR_IDS = new Set(['blwind', 'bltopwind']);
+if (!appState) {
+    appState = _fallbackState;
+    console.log('⚠️ Usando estado local (fallback)');
+}
 
-const WIND_VAR_IDS  = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000','blwind','bltopwind','wblmaxmin']);
-const CLOUD_VAR_IDS = new Set(['zblcl','zsfclcl','hglider','cape']);
-/** Ventos con campo vector/partículas (exclúe p.ex. converxencias e vars só backend) */
-const WIND_SPEED_VAR_IDS = new Set(['sfcwind','wind1500','wind2000','wind2500','wind3000']);
+// Proxy: todo o código que usa state.* redirixe a appState
+const state = new Proxy({}, {
+    get(target, prop) {
+        return appState[prop];
+    },
+    set(target, prop, value) {
+        appState[prop] = value;
+        return true;
+    }
+});
+
+if (typeof window !== 'undefined') {
+    window.__appState = appState;
+}
+
+console.log('✅ Proxy state configurado');
 
 const els = {
     dateSelector: document.getElementById('date-selector'),
@@ -129,98 +342,6 @@ const els = {
     mapContainer: document.getElementById('map'),
     dynamicScale: document.getElementById('dynamic-scale')
 };
-
-function scalarVarCategory(varId) {
-    if (WIND_VAR_IDS.has(varId)) return 'wind';
-    if (CLOUD_VAR_IDS.has(varId)) return 'cloud';
-    return 'other';
-}
-
-/** Variable principal para vectores/partículas/tooltip: prioriza vento “rápido”, logo calquera vento, logo a primeira activa */
-function derivePrimaryCurrentVar() {
-    const ids = state.activeScalarVarIds;
-    const speedWind = ids.find(id => WIND_SPEED_VAR_IDS.has(id));
-    if (speedWind) return speedWind;
-    const anyWind = ids.find(id => WIND_VAR_IDS.has(id));
-    if (anyWind) return anyWind;
-    return ids[0] || 'none';
-}
-
-function applyDerivedCurrentVar() {
-    state.currentVar = derivePrimaryCurrentVar();
-    if (els.varSelector) {
-        els.varSelector.value = state.currentVar === 'none' ? 'none' : state.currentVar;
-    }
-}
-
-/** Alternar chip de variable: modo simple = unha sola entre capas (choiva/nube) e escalares */
-function toggleScalarVariable(varId) {
-    if (state.uiMode === 'simple') {
-        const idx = state.activeScalarVarIds.indexOf(varId);
-        if (idx !== -1) {
-            state.activeScalarVarIds.splice(idx, 1);
-        } else {
-            state.activeScalarVarIds = [varId];
-            SIMPLE_LAYER_IDS.forEach(lid => {
-                state.layers[lid] = false;
-            });
-        }
-        applyDerivedCurrentVar();
-        syncVarButtonsActive();
-        syncTogglesUI();
-        updateModeVisibility();
-        updateImage();
-        return;
-    }
-
-    const idx = state.activeScalarVarIds.indexOf(varId);
-    if (idx !== -1) {
-        state.activeScalarVarIds.splice(idx, 1);
-    } else {
-        const cat = scalarVarCategory(varId);
-        state.activeScalarVarIds = state.activeScalarVarIds.filter(v => {
-            if (cat === 'wind' && WIND_VAR_IDS.has(v)) return false;
-            if (cat === 'cloud' && CLOUD_VAR_IDS.has(v)) return false;
-            return true;
-        });
-        state.activeScalarVarIds.push(varId);
-        while (state.activeScalarVarIds.length > 2) {
-            state.activeScalarVarIds.shift();
-        }
-    }
-    applyDerivedCurrentVar();
-    syncVarButtonsActive();
-    updateModeVisibility();
-    updateImage();
-}
-
-/** manifest last_updated: YYYY-MM-DD HH:mm:ss → día mes hora:min (sen ano nin segundos), orde gl-ES */
-function formatLastUpdatedForDisplay(raw) {
-    if (!raw) return '';
-    const s = String(raw).trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-    let date;
-    if (m) {
-        date = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-    } else {
-        date = new Date(s);
-        if (Number.isNaN(date.getTime())) return '';
-    }
-    const dayNum = date.getDate();
-    let monthLbl = '';
-    try {
-        monthLbl = new Intl.DateTimeFormat('gl-ES', { month: 'short' }).format(date);
-    } catch {
-        monthLbl = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(date);
-    }
-    monthLbl = monthLbl.replace(/\./g, '').trim();
-    const hh = String(date.getHours()).padStart(2, '0');
-    const min = String(date.getMinutes()).padStart(2, '0');
-    return `${dayNum} ${monthLbl} ${hh}:${min}`;
-}
-
-const LS_OPACITY_MAP_KEY = 'meteowrf_layer_opacity';
-const LS_OPACITY_VARS_KEY = 'meteowrf_variable_layer_opacity';
 
 /** Borra todo localStorage salvo opacidades e modo UI. */
 function pruneLocalStorageKeepOpacityOnly() {
@@ -270,6 +391,8 @@ function shouldForceModePickerOverlay() {
 // --- Initialization ---
 
 async function init() {
+    wireUiDeps();
+    wireMapDeps();
     try {
         pruneLocalStorageKeepOpacityOnly();
         if (els.lastUpdated) els.lastUpdated.textContent = 'Cargando…';
@@ -286,7 +409,7 @@ async function init() {
             }
         }
 
-        state.particleEngine = new WindParticles(null);
+        state.particleEngine = createParticleEngine();
         initMap();
         setupControls();
         updateUIForType();
@@ -302,1012 +425,6 @@ async function init() {
     }
 }
 
-function initMap() {
-    if (state.map) return;
-
-    // Initialize Leaflet map
-    // User wants: cannot move (dragging: false) but zoom enabled
-    state.map = L.map('map', {
-        dragging: true,
-        touchZoom: true,
-        scrollWheelZoom: true,
-        doubleClickZoom: true,
-        boxZoom: false,
-        zoomControl: true,
-        attributionControl: false,
-        minZoom: 3,
-        maxZoom: 16,
-        /** Botóns +/- do control: pasos intermedios (ex.: 8 → 8.5 → 9). Rueda/pinch tamén respectan zoomSnap. */
-        zoomSnap: 0.5,
-        zoomDelta: 0.5
-    });
-
-    // --- Base Layers Configuration ---
-    const baseMaps = {
-        "Relieve": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
-        }),
-        "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 17,
-            attribution: '&copy; OpenStreetMap | &copy; OpenTopoMap'
-        }),
-        "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: '&copy; Esri'
-        })
-    };
-
-    // Add default layer
-    baseMaps["OpenTopoMap"].addTo(state.map);
-    state.baseLayer = baseMaps["OpenTopoMap"];
-    if (state.baseLayer) state.baseLayer.setOpacity(state.overlayOpacity);
-
-    // Track active base layer to apply opacity across switches
-    state.map.on('baselayerchange', (e) => {
-        state.baseLayer = e.layer;
-        if (state.baseLayer) state.baseLayer.setOpacity(state.overlayOpacity);
-    });
-
-    // Add layer control
-    L.control.layers(baseMaps).addTo(state.map);
-
-    // Add boundaries high-z-index overlay
-    state.map.createPane('boundariesPane');
-    state.map.getPane('boundariesPane').style.zIndex = 450;
-    state.map.getPane('boundariesPane').style.pointerEvents = 'none'; // allow clicks through
-
-    state.boundariesLayer = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-        pane: 'boundariesPane',
-        attribution: '&copy; Esri',
-        maxZoom: 19
-    });
-
-    state.provincesLayer = L.geoJSON(null, {
-        pane: 'boundariesPane',
-        style: {
-            color: '#ffffff',
-            weight: 1.8,
-            opacity: 1.0,
-            fillOpacity: 0
-        },
-        interactive: false
-    });
-
-    // Fetch local geojson lines asynchronously
-    fetch('spain-provinces.geojson')
-        .then(res => res.json())
-        .then(data => {
-            if (state.provincesLayer) state.provincesLayer.addData(data);
-        })
-        .catch(err => console.error("Could not load borders geojson", err));
-
-    if (state.layers.boundaries) {
-        state.boundariesLayer.addTo(state.map);
-    }
-    if (state.layers.provinces) {
-        state.provincesLayer.addTo(state.map);
-    }
-
-    // Initial particle color based on default base layer (Relieve)
-    if (state.particleEngine) {
-        state.particleEngine.particleColor = 'rgba(0, 0, 0, 0.7)';
-    }
-
-    state.map.on('baselayerchange', (e) => {
-        if (!state.particleEngine) return;
-        if (e.name === 'Satélite') {
-            state.particleEngine.particleColor = 'rgba(0, 255, 255, 0.8)';
-        } else {
-            // Relieve or OpenTopoMap
-            state.particleEngine.particleColor = 'rgba(0, 0, 0, 0.7)';
-        }
-    });
-
-    const leafletScale = L.control.scale({ imperial: false, position: 'bottomright' });
-    leafletScale.addTo(state.map);
-    const leafletScaleRoot = leafletScale.getContainer?.() || leafletScale._container;
-    const scaleAnchor = document.getElementById('leaflet-scale-anchor');
-    if (leafletScaleRoot && scaleAnchor) {
-        scaleAnchor.appendChild(leafletScaleRoot);
-        leafletScaleRoot.style.position = 'static';
-        leafletScaleRoot.style.margin = '0';
-    }
-
-    L.Control.ParticlesPause = L.Control.extend({
-        options: { position: 'topright' },
-        onAdd: function (map) {
-            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom leaflet-control-particles');
-            const btn = L.DomUtil.create('a', '', container);
-            btn.href = '#';
-            btn.title = 'Pausar animación do vento (partículas)';
-            btn.innerHTML = '⏸️';
-            btn.style.backgroundColor = '#ffffff';
-            btn.style.textDecoration = 'none';
-
-            L.DomEvent.on(btn, 'click', function (e) {
-                L.DomEvent.stopPropagation(e);
-                L.DomEvent.preventDefault(e);
-
-                const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
-                if (!isWind || state.vectorMode !== 'particles' || !state.particleEngine) return;
-
-                if (state.particlesPaused) {
-                    resumeParticlesAfterContextChange();
-                } else {
-                    state.particlesPaused = true;
-                    state.particleEngine.freezeAnimation();
-                    syncParticlesPauseButton();
-                }
-            });
-
-            state.particlesControlButton = btn;
-            state.particlesControlContainer = container;
-            return container;
-        }
-    });
-    state.particlesControl = new L.Control.ParticlesPause();
-    state.particlesControl.addTo(state.map);
-
-    // Add Variable Selector Control
-    L.Control.VarSelector = L.Control.extend({
-        options: { position: 'topleft' },
-        onAdd: function (map) {
-            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom var-selector-control');
-            container.style.backgroundColor = '#fff';
-            container.style.pointerEvents = 'auto';
-
-            const select = L.DomUtil.create('select', 'leaflet-var-selector', container);
-            select.style.border = 'none';
-            select.style.background = 'transparent';
-            select.style.color = '#333';
-            select.style.outline = 'none';
-            select.style.cursor = 'pointer';
-            select.style.fontSize = '12px';
-            select.style.fontWeight = '500';
-            select.style.padding = '0 4px';
-            select.style.height = '22px';
-
-            L.DomEvent.disableClickPropagation(container);
-            L.DomEvent.on(select, 'mousedown touchstart click', function (e) {
-                L.DomEvent.stopPropagation(e);
-            });
-
-            els.varSelector = select;
-            els.varGroup = container;
-
-            return container;
-        }
-    });
-    new L.Control.VarSelector().addTo(state.map);
-
-    // Vista inicial: escritorio zoom 8; móvil/tablet (≤1024px, coma layout CSS) medio nivel menos → 7.5 (zoomSnap 0.5)
-    const initialZoom = (typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches) ? 7.5 : 8;
-    const initialBounds = getDomainBounds();
-    if (initialBounds) {
-        state.map.setView(initialBounds.getCenter(), initialZoom);
-    } else {
-        // Fallback to Spain center
-        state.map.setView([40.4168, -3.7038], initialZoom);
-    }
-
-    // Create canvas layer for wind particles
-    // We'll use L.Canvas or just a custom overlay.
-    // Let's use a simple L.Layer for the particle canvas later.
-    const canvasOverlay = L.Layer.extend({
-        onAdd: function (map) {
-            const canvas = L.DomUtil.create('canvas', 'leaflet-layer z-particles');
-            canvas.id = 'wind-particles';
-            this._canvas = canvas;
-            map.getPanes().overlayPane.appendChild(canvas);
-            map.on('moveend', this._update, this);
-            this._update();
-        },
-        onRemove: function (map) {
-            map.getPanes().overlayPane.removeChild(this._canvas);
-            map.off('moveend', this._update, this);
-        },
-        _update: function () {
-            const map = this._map;
-            const size = map.getSize();
-            const canvas = this._canvas;
-            canvas.width = size.x;
-            canvas.height = size.y;
-            const pos = map.containerPointToLayerPoint([0, 0]);
-            L.DomUtil.setPosition(canvas, pos);
-
-            if (state.particleEngine) {
-                state.particleEngine.canvas = canvas;
-                state.particleEngine.ctx = canvas.getContext('2d');
-                if (!state.particlesPaused) {
-                    state.particleEngine.initParticles();
-                }
-            }
-        }
-    });
-    // Instantiate and add overlay
-    const overlay = new canvasOverlay();
-    overlay.addTo(state.map);
-
-    /** Ao cambiar só zoom: reanudar partículas se estaban en pausa */
-    state.map.on('zoomend', () => {
-        resumeParticlesAfterContextChange();
-    });
-
-    // Re-render grid overlays on zoom or pan to adjust detail and handle domain switching
-    state.map.on('moveend zoomend dragend', () => {
-        // Delay unlocking to swallow residual click events from touch devices
-        setTimeout(() => {
-            state.isInteractionLocked = false;
-        }, 150);
-
-        const newDom = getDomainForView();
-        if (newDom !== state.currentDomain && newDom !== null) {
-            setDomainInternal(newDom);
-        } else {
-            // Fuerza la regeneración de vectores según nivel de zoom para mantener grosores constantes
-            updateImage();
-        }
-        updateDisplayControl();
-    });
-
-    state.map.on('movestart zoomstart touchstart dragstart', () => {
-        state.isInteractionLocked = true;
-    });
-
-    // Create the Zoom/Domain indicator as a direct child of the map container 
-    // to avoid layout conflicts with Leaflet controls
-    const indicator = L.DomUtil.create('div', 'zoom-domain-display', els.mapContainer);
-    indicator.style.backgroundColor = 'rgba(0,0,0,0.85)';
-    indicator.style.color = 'white';
-    indicator.style.padding = '3px 10px';
-    indicator.style.borderRadius = '8px';
-    indicator.style.fontSize = '12px';
-    indicator.style.fontWeight = '500';
-    indicator.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
-    indicator.style.backdropFilter = 'blur(4px)';
-    indicator.style.border = '1px solid rgba(255,255,255,0.2)';
-    indicator.style.position = 'absolute';
-    indicator.style.top = '15px';
-    indicator.style.left = '50%';
-    indicator.style.transform = 'translateX(-50%)';
-    indicator.style.zIndex = '10001';
-    indicator.style.pointerEvents = 'none';
-    indicator.style.margin = '0';
-    state.zoomIndicator = indicator;
-
-    updateDisplayControl();
-    updateUIForType();
-}
-
-function updateDisplayControl() {
-    if (!state.zoomIndicator) return;
-    const zoom = state.map ? state.map.getZoom() : 8;
-    const dom = state.currentDomain;
-
-    if (dom === null) {
-        state.zoomIndicator.innerHTML = `Zoom: <strong>${zoom}</strong>`;
-    } else {
-        const domLabel = dom.toUpperCase();
-        state.zoomIndicator.innerHTML = `Zoom: <strong>${zoom}</strong> | <strong>${domLabel}</strong>`;
-    }
-}
-
-function getDomainForView() {
-    return 'd02';
-}
-
-function setDomainInternal(dom) {
-    console.log("Auto-switching domain to:", dom);
-    state.currentDomain = dom;
-
-    // Clear existing overlays
-    Object.keys(state.scalarOverlayByVarId).forEach(k => {
-        if (state.scalarOverlayByVarId[k]) state.map.removeLayer(state.scalarOverlayByVarId[k]);
-        delete state.scalarOverlayByVarId[k];
-    });
-    if (state.vectorOverlay) { state.map.removeLayer(state.vectorOverlay); state.vectorOverlay = null; }
-    Object.keys(state.dynamicOverlays).forEach(k => {
-        if (state.dynamicOverlays[k]) state.map.removeLayer(state.dynamicOverlays[k]);
-        delete state.dynamicOverlays[k];
-    });
-
-    populateVars();
-    updateUIForType();
-    updateMarkers();
-    updateImage();
-}
-
-function updateMarkers() {
-    // Clear old markers
-    state.markers.forEach(m => state.map.removeLayer(m));
-    state.markers = [];
-
-    // Hide everything if no domain is active
-    if (!state.currentDomain) return;
-
-    const config = state.manifest.configuration;
-
-    // Takeoffs: Always visible if enabled
-    // Legacy takeoffs logic removed. Names are now drawn on soundings (blue dots).
-
-    // Soundings (Stations): ALWAYS visible regardless of WHICH domain is active, but NOT if no domain is active
-    if (state.layers.soundings) {
-        const soundingsMap = config.soundings || {};
-        const allSoundings = [];
-        Object.keys(soundingsMap).forEach(domKey => {
-            soundingsMap[domKey].forEach(s => {
-                if (!allSoundings.find(x => x.id === s.id)) {
-                    s.domain = domKey;
-                    allSoundings.push(s);
-                }
-            });
-        });
-
-        allSoundings.forEach(s => {
-            if (s.lat != null && s.lon != null) {
-                const isActive = state.currentStation === s.id;
-                const fillNormal = state.soundingsMode === 'names_green' ? '#16a34a' : '#2563eb';
-                const fillActive = state.soundingsMode === 'names_green' ? '#4ade80' : '#38bdf8';
-                const marker = L.circleMarker([s.lat, s.lon], {
-                    radius: 5,
-                    fillColor: isActive ? fillActive : fillNormal,
-                    color: "#fff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 1,
-                    interactive: false // Usamos el touchMarker para la interacción
-                }).addTo(state.map);
-
-                // Marcador invisible para ampliar masivamente la zona táctil (radio 25px)
-                const touchMarker = L.circleMarker([s.lat, s.lon], {
-                    radius: 25,
-                    color: 'transparent',
-                    fillColor: 'transparent',
-                    interactive: true,
-                    bubblingMouseEvents: false // <-- Evita que el clic pase al mapa de fondo
-                }).addTo(state.map);
-
-                if (state.layers.takeoffs_names) {
-                    marker.bindTooltip(s.name, { 
-                        permanent: true, 
-                        direction: 'top', 
-                        className: 'label-takeoff' 
-                    });
-                }
-
-                touchMarker.on('click', (e) => {
-                    els.windTooltip.classList.add('hidden');
-                    if (e.originalEvent) e.originalEvent.stopPropagation();
-                    marker.openPopup();
-                });
-
-                touchMarker.on('mouseover', (e) => {
-                    updateTooltip(e.latlng, s.name);
-                });
-
-                touchMarker.on('mouseout', () => {
-                    updateTooltip(null);
-                });
-
-                const activeVarId = getActiveScalarVarId();
-                const pointData = getPointData([s.lat, s.lon], activeVarId);
-
-                let dataHtml = '';
-                if (pointData) {
-                    dataHtml = `
-                        <div class="popup-data">
-                            <strong>${pointData.title}:</strong> ${pointData.value.toFixed(1)} ${pointData.units}
-                            ${pointData.dir !== null ? `<span class="popup-dir" style="display:inline-block; transform:rotate(${pointData.dir + 180}deg)">↑</span>` : ''}
-                        </div>
-                    `;
-                }
-
-                const popupContent = `
-                    <div class="sounding-popup">
-                        <strong>${s.name}</strong>
-                        ${dataHtml}
-                        <button class="popup-btn" onclick="openSounding('${s.id}')">ver gráficas</button>
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent, {
-                    className: 'custom-sounding-popup',
-                    offset: [0, 0]
-                });
-
-                state.markers.push(marker);
-                state.markers.push(touchMarker);
-            }
-        });
-    }
-}
-
-// Global function to open the sounding modal from the popup button
-window.openSounding = function (stationId) {
-    // Set state immediately to block tooltips
-    document.documentElement.classList.add('has-modal');
-    document.body.classList.add('has-modal');
-
-    // Close any open popups (the marker's bubble)
-    if (state.map) state.map.closePopup();
-
-    // Clear any pinned tooltip marker
-    if (state.clickMarker) {
-        state.map.removeLayer(state.clickMarker);
-        state.clickMarker = null;
-    }
-    state.isTooltipPinned = false;
-
-    // Hide the wind tooltip
-    els.windTooltip.classList.add('hidden');
-
-    state.currentStation = stationId;
-    updateUIForType();
-    updateImage();
-    updateMarkers();
-
-    if (state.currentStation) {
-        els.overlayContainer.classList.remove('hidden');
-        if (els.overlayContainer.querySelector('.modal-content')) {
-            els.overlayContainer.querySelector('.modal-content').scrollTop = 0;
-        }
-    }
-};
-
-function applySoundingsModeFromCycle() {
-    if (state.soundingsMode === 'dots_blue') {
-        state.layers.soundings = true;
-        state.layers.takeoffs_names = false;
-    } else if (state.soundingsMode === 'names_green') {
-        state.layers.soundings = true;
-        state.layers.takeoffs_names = true;
-    } else {
-        state.soundingsMode = 'hidden';
-        state.layers.soundings = false;
-        state.layers.takeoffs_names = false;
-    }
-}
-
-function syncSoundingsCycleUI() {
-    const btn = document.getElementById('btn-sounding-cycle');
-    if (!btn) return;
-    btn.classList.remove('sounding-cycle-btn--blue', 'sounding-cycle-btn--green', 'sounding-cycle-btn--off');
-    if (state.soundingsMode === 'dots_blue') {
-        btn.classList.add('sounding-cycle-btn--blue');
-        btn.setAttribute('aria-label', 'Sondeos: puntos azuis. Pulsa para etiquetas en verde.');
-        btn.title = 'Sondeos: puntos azuis';
-    } else if (state.soundingsMode === 'names_green') {
-        btn.classList.add('sounding-cycle-btn--green');
-        btn.setAttribute('aria-label', 'Sondeos con etiquetas (verde). Pulsa para desactivar.');
-        btn.title = 'Sondeos con etiquetas';
-    } else {
-        btn.classList.add('sounding-cycle-btn--off');
-        btn.setAttribute('aria-label', 'Sondeos desactivados. Pulsa para puntos azuis.');
-        btn.title = 'Sondeos apagados';
-    }
-}
-
-function cycleSoundingsMode() {
-    const order = ['dots_blue', 'names_green', 'hidden'];
-    const i = Math.max(0, order.indexOf(state.soundingsMode));
-    state.soundingsMode = order[(i + 1) % order.length];
-    applySoundingsModeFromCycle();
-    syncSoundingsCycleUI();
-    updateMarkers();
-    updateImage();
-}
-
-function setupControls() {
-    // Set initial domain based on view bounds if map exists, else d01
-    const initialDomain = state.map ? getDomainForView() : 'd01';
-    state.currentDomain = initialDomain;
-
-
-    // Dates
-    populateDates();
-
-    // Variables (Initial)
-    populateVars();
-
-    // Listeners
-    els.dateSelector.onchange = (e) => {
-        resumeParticlesAfterContextChange();
-        state.currentDate = e.target.value;
-        updateAvailableHours();
-        updateImage();
-    };
-
-    els.timeSelector.onchange = (e) => {
-        resumeParticlesAfterContextChange();
-        const selectedHour = parseInt(e.target.value, 10);
-        const index = state.availableHours.indexOf(selectedHour);
-        if (index !== -1) {
-            state.currentHourIndex = index;
-            state.currentHour = selectedHour;
-            updateImage();
-        }
-    };
-
-    /*
-    els.viewTypeSelector.onchange = (e) => {
-        state.viewType = e.target.value;
-        updateUIForType();
-        updateImage();
-    };
-    */
-
-    els.varSelector.onchange = (e) => {
-        const v = e.target.value;
-        if (v === 'none') state.activeScalarVarIds = [];
-        else state.activeScalarVarIds = [v];
-        applyDerivedCurrentVar();
-        syncVarButtonsActive();
-        updateModeVisibility();
-        updateImage();
-    };
-
-    if (els.opacitySlider) {
-        const savedOpacity = localStorage.getItem(LS_OPACITY_MAP_KEY);
-        if (savedOpacity !== null) {
-            els.opacitySlider.value = savedOpacity;
-            state.overlayOpacity = savedOpacity / 100;
-            if (state.baseLayer) {
-                state.baseLayer.setOpacity(state.overlayOpacity);
-            }
-        }
-        els.opacitySlider.oninput = (e) => {
-            state.overlayOpacity = e.target.value / 100;
-            localStorage.setItem(LS_OPACITY_MAP_KEY, e.target.value);
-            if (state.baseLayer) {
-                state.baseLayer.setOpacity(state.overlayOpacity);
-            }
-        };
-    }
-
-    if (els.variableOpacitySlider) {
-        const savedVarOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
-        if (savedVarOp !== null) {
-            const v = Math.max(10, Math.min(100, parseInt(savedVarOp, 10) || 100));
-            els.variableOpacitySlider.value = String(v);
-            state.variableLayerOpacity = v / 100;
-        }
-        els.variableOpacitySlider.oninput = (e) => {
-            const v = Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 100));
-            state.variableLayerOpacity = v / 100;
-            localStorage.setItem(LS_OPACITY_VARS_KEY, String(v));
-            syncVariableDataLayersOpacity();
-        };
-    }
-
-    const opacityToggleBtn = document.getElementById('btn-opacity-toggle');
-    const opacityContainer = document.getElementById('opacity-container');
-    if (opacityToggleBtn && opacityContainer) {
-        opacityToggleBtn.addEventListener('click', () => {
-            const isOpen = opacityContainer.classList.toggle('show');
-            opacityToggleBtn.classList.toggle('active', isOpen);
-        });
-    }
-    if (els.closeModalBtn) {
-        els.closeModalBtn.addEventListener('click', () => {
-            els.overlayContainer.classList.add('hidden');
-            document.documentElement.classList.remove('has-modal');
-            document.body.classList.remove('has-modal');
-            state.currentStation = '';
-            els.imgSounding.classList.remove('expanded');
-            els.imgMeteogram.classList.remove('expanded');
-            updateUIForType();
-            updateMarkers(); // Un-highlight active marker
-        });
-    }
-
-    // Image Fullscreen and Swipe/Drag to change time
-    [els.imgSounding, els.imgMeteogram].forEach(img => {
-        if (!img) return;
-
-        let startX = 0;
-        let isDragging = false;
-        const threshold = 50;
-
-        const onStart = (clientX) => {
-            startX = clientX;
-            isDragging = true;
-        };
-
-        const onEnd = (clientX) => {
-            if (!isDragging) return;
-            isDragging = false;
-
-            // Prevent swipe actions if the image is expanded
-            if (img.classList.contains('expanded')) return;
-
-            const diff = startX - clientX;
-            if (Math.abs(diff) > threshold) {
-                if (diff > 0) stepTime(1);
-                else stepTime(-1);
-            }
-        };
-
-        img.addEventListener('touchstart', e => onStart(e.changedTouches[0].clientX), { passive: true });
-        img.addEventListener('touchend', e => onEnd(e.changedTouches[0].clientX));
-
-        img.addEventListener('mousedown', e => {
-            onStart(e.clientX);
-            e.preventDefault(); // Prevents native HTML image drag
-        });
-        img.addEventListener('mouseup', e => onEnd(e.clientX));
-        img.addEventListener('mouseleave', e => {
-            if (isDragging) onEnd(e.clientX);
-        });
-
-        img.addEventListener('click', function (e) {
-            const diff = startX - e.clientX;
-            // Only toggle expanded if it was a click, not a significant drag
-            if (Math.abs(diff) <= threshold) {
-                this.classList.toggle('expanded');
-            }
-        });
-    });
-
-    // Toggles (Static)
-    // Dynamic Layers from Manifest
-    const overlaysGroup = document.getElementById('overlays-group');
-    // Clear dynamic toggles but keep static ones if they exist? 
-    // Actually the user said "treat in id='overlays-group'".
-    // Let's assume we append or clear. Existing static layers are: roads, cities, peaks, takeoffs.
-    // They are hardcoded in HTML.
-
-    const LAYER_ORDER = ['blcloudpct', 'lowfrac', 'midfrac', 'highfrac', 'rain'];
-    const sortedLayers = [...state.manifest.configuration.layers].sort((a, b) => {
-        const ai = LAYER_ORDER.indexOf(a.id);
-        const bi = LAYER_ORDER.indexOf(b.id);
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    });
-    sortedLayers.forEach(layer => {
-        if (state.uiMode === 'simple' && !SIMPLE_LAYER_IDS.includes(layer.id)) return;
-        if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-toggle';
-        btn.dataset.layerId = layer.id;
-
-        const iconSrc = LAYER_ICONS[layer.id];
-        if (iconSrc) {
-            const img = document.createElement('img');
-            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
-            btn.appendChild(img);
-        }
-        const label = (layer.id in LAYER_SHORT_LABELS) ? LAYER_SHORT_LABELS[layer.id] : layer.title;
-        if (label) {
-            const span = document.createElement('span'); span.textContent = label;
-            btn.appendChild(span);
-        } else if (iconSrc) {
-            btn.classList.add('icon-only');
-        }
-        if (state.layers[layer.id]) btn.classList.add('active');
-        btn.onclick = () => { setWeatherLayer(layer.id); syncTogglesUI(); };
-        document.getElementById('weather-layers').appendChild(btn);
-    });
-
-    // Sondeos: ciclo 🪂 na liña da data (esquerda do día)
-    const btnSoundingCycle = document.getElementById('btn-sounding-cycle');
-    if (btnSoundingCycle) {
-        btnSoundingCycle.addEventListener('click', () => cycleSoundingsMode());
-    }
-    applySoundingsModeFromCycle();
-    syncSoundingsCycleUI();
-
-    const toggleBoundaries = document.getElementById('toggle-boundaries');
-    if (toggleBoundaries) {
-        toggleBoundaries.checked = state.layers.boundaries || false;
-        toggleBoundaries.onchange = (e) => {
-            state.layers.boundaries = e.target.checked;
-            if (state.layers.boundaries) {
-                if (state.boundariesLayer && !state.map.hasLayer(state.boundariesLayer)) {
-                    state.boundariesLayer.addTo(state.map);
-                }
-            } else {
-                if (state.boundariesLayer && state.map.hasLayer(state.boundariesLayer)) {
-                    state.map.removeLayer(state.boundariesLayer);
-                }
-            }
-        };
-    }
-
-    const toggleProvinces = document.getElementById('toggle-provinces');
-    if (toggleProvinces) {
-        toggleProvinces.checked = state.layers.provinces || false;
-        toggleProvinces.onchange = (e) => {
-            state.layers.provinces = e.target.checked;
-            if (state.layers.provinces) {
-                if (state.provincesLayer && !state.map.hasLayer(state.provincesLayer)) {
-                    state.provincesLayer.addTo(state.map);
-                }
-            } else {
-                if (state.provincesLayer && state.map.hasLayer(state.provincesLayer)) {
-                    state.map.removeLayer(state.provincesLayer);
-                }
-            }
-        };
-    }
-
-
-    state.vectorMode = 'particles';
-    syncTogglesUI();
-    updateModeVisibility();
-
-    // Playback
-    const prevDayBtn = document.getElementById('prev-day-btn');
-    const nextDayBtn = document.getElementById('next-day-btn');
-    const prevTimeBtn = document.getElementById('prev-time-btn');
-    const nextTimeBtn = document.getElementById('next-time-btn');
-
-    if (prevDayBtn) prevDayBtn.onclick = () => stepDay(-1);
-    if (nextDayBtn) nextDayBtn.onclick = () => stepDay(1);
-    if (prevTimeBtn) prevTimeBtn.onclick = () => stepTime(-1);
-    if (nextTimeBtn) nextTimeBtn.onclick = () => stepTime(1);
-
-    // Keyboard
-    document.addEventListener('keydown', (e) => {
-        // if (state.viewType === 'meteogram') return; // Removed restriction
-        if (e.key === 'ArrowRight') stepTime(1);
-        if (e.key === 'ArrowLeft') stepTime(-1);
-    });
-
-    // Responsive Menu
-    const menuToggle = document.getElementById('menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-
-    if (menuToggle && sidebar) {
-        menuToggle.onclick = () => {
-            sidebar.classList.toggle('open');
-        };
-    }
-
-    if (overlay && sidebar) {
-        overlay.onclick = () => {
-            sidebar.classList.remove('open');
-        };
-    }
-
-    if (els.overlayContainer) {
-        // No longer using click-to-close for inline display
-    }
-
-    // Map events for tooltip
-    if (state.map) {
-        state.map.on('mousemove', (e) => {
-            if (!state.isTooltipPinned) updateTooltip(e.latlng);
-        });
-        state.map.on('mouseout', () => {
-            if (!state.isTooltipPinned) els.windTooltip.classList.add('hidden');
-        });
-        state.map.on('click', (e) => {
-            if (state.isTooltipPinned) {
-                // If a tooltip is already open, close it and don't open a new one on this click
-                if (state.clickMarker) {
-                    state.map.removeLayer(state.clickMarker);
-                    state.clickMarker = null;
-                }
-                state.isTooltipPinned = false;
-                els.windTooltip.classList.add('hidden');
-                return;
-            }
-
-            // Otherwise, open a new tooltip
-            state.clickMarker = L.circleMarker(e.latlng, {
-                radius: 5,
-                fillColor: '#f00',
-                color: '#fff',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 1,
-                interactive: false
-            }).addTo(state.map);
-            state.isTooltipPinned = true;
-            updateTooltip(e.latlng);
-        });
-        state.map.on('movestart', () => {
-            if (state.clickMarker) {
-                state.map.removeLayer(state.clickMarker);
-                state.clickMarker = null;
-            }
-            state.isTooltipPinned = false;
-            els.windTooltip.classList.add('hidden');
-        });
-
-        // Ensure map resizes correctly when the window or orientation changes
-        window.addEventListener('resize', () => {
-            state.map.invalidateSize();
-            scheduleGradientScaleLabelsLayout();
-        });
-        window.addEventListener('orientationchange', () => {
-            // Short delay to allow browser to calculate new dimensions
-            setTimeout(() => {
-                state.map.invalidateSize();
-                scheduleGradientScaleLabelsLayout();
-            }, 200);
-        });
-    }
-
-    setupScaleGradientToggle();
-}
-
-function applyScaleChromeVisibility() {
-    document.body.classList.toggle('scale-gradient-hide-details', !state.scaleChromeExpanded);
-    if (els.dynamicScale) {
-        els.dynamicScale.setAttribute('aria-expanded', state.scaleChromeExpanded ? 'true' : 'false');
-    }
-    if (state.map) requestAnimationFrame(() => state.map.invalidateSize());
-}
-
-function syncDynamicScaleInteractiveAttrs() {
-    if (!els.dynamicScale) return;
-    const visible = !els.dynamicScale.classList.contains('hidden');
-    els.dynamicScale.tabIndex = visible ? 0 : -1;
-    els.dynamicScale.setAttribute('aria-hidden', visible ? 'false' : 'true');
-}
-
-/** Un clic no gradiente alterna etiquetas numéricas, fila “Actualizado”/escala km, etiqueta da variable no mapa; en móbil tamén o panel de chips por riba da data/hora. */
-function setupScaleGradientToggle() {
-    if (!els.dynamicScale || els.dynamicScale.dataset.gradientToggleBound === '1') return;
-    els.dynamicScale.dataset.gradientToggleBound = '1';
-
-    els.dynamicScale.addEventListener('click', (e) => {
-        e.stopPropagation();
-        state.scaleChromeExpanded = !state.scaleChromeExpanded;
-        applyScaleChromeVisibility();
-    });
-
-    els.dynamicScale.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        state.scaleChromeExpanded = !state.scaleChromeExpanded;
-        applyScaleChromeVisibility();
-    });
-
-    applyScaleChromeVisibility();
-    syncDynamicScaleInteractiveAttrs();
-}
-
-function updateUIForType() {
-    // Map controls always visible (selector no mapa: só modo vuelo)
-    if (els.varGroup) {
-        els.varGroup.classList.toggle('hidden', state.uiMode === 'simple');
-    }
-    document.getElementById('overlays-group').classList.remove('hidden');
-    document.getElementById('scale-container').classList.remove('hidden');
-
-    // Invalidate station if it doesn't exist globally
-    if (state.currentStation) {
-        const soundingsMap = state.manifest.configuration.soundings || {};
-        let existsGlobally = false;
-        for (const dom in soundingsMap) {
-            if (soundingsMap[dom].some(s => (s.id || s) === state.currentStation)) {
-                existsGlobally = true;
-                break;
-            }
-        }
-        if (!existsGlobally) {
-            state.currentStation = '';
-            els.overlayContainer.classList.add('hidden');
-            document.documentElement.classList.remove('has-modal');
-            document.body.classList.remove('has-modal');
-        }
-    }
-
-    // Images Visibility controls
-    els.mapContainer.classList.remove('hidden');
-
-    // Image Visibility controls inside modal
-    const showStationPlots = (state.currentStation && state.currentStation !== '');
-    if (showStationPlots) {
-        els.imgSounding.classList.remove('hidden');
-        els.imgMeteogram.classList.remove('hidden');
-    } else {
-        els.imgSounding.classList.add('hidden');
-        els.imgMeteogram.classList.add('hidden');
-    }
-
-    if (els.timelineControls) {
-        els.timelineControls.classList.remove('hidden');
-    }
-
-    updateModeVisibility();
-}
-
-function updateModeVisibility() {
-    if (!state.map) return;
-    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
-
-    if (state.particlesControlContainer) {
-        state.particlesControlContainer.style.display = isWind ? 'block' : 'none';
-        syncParticlesPauseButton();
-    }
-}
-
-/** Reanuda animación de partículas (data/hora/zoom ou botón). */
-function resumeParticlesAfterContextChange() {
-    if (!state.particlesPaused) {
-        syncParticlesPauseButton();
-        return;
-    }
-    state.particlesPaused = false;
-    syncParticlesPauseButton();
-    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
-    const showParticles = (state.vectorMode === 'particles' && isWind);
-    if (state.particleEngine && showParticles && state.gridDataMap[state.currentVar] &&
-        state.gridDataMap[state.currentVar].grid && state.gridDataMap[state.currentVar].grid.twsKn) {
-        state.particleEngine.unfreezeAnimation();
-    }
-}
-
-function syncParticlesPauseButton() {
-    const btn = state.particlesControlButton;
-    if (!btn) return;
-    const isWind = WIND_SPEED_VAR_IDS.has(state.currentVar);
-    if (!isWind || state.vectorMode !== 'particles') {
-        btn.title = 'Pausar animación do vento (partículas)';
-        btn.innerHTML = '⏸️';
-        btn.style.backgroundColor = '#ffffff';
-        return;
-    }
-    if (state.particlesPaused) {
-        btn.title = 'Reanudar animación do vento';
-        btn.innerHTML = '▶️';
-        btn.style.backgroundColor = '#cce8ff';
-    } else {
-        btn.title = 'Pausar animación do vento (partículas)';
-        btn.innerHTML = '⏸️';
-        btn.style.backgroundColor = '#ffffff';
-    }
-}
-
-/**
- * Sync Toggle Buttons Visual State with Internal State
- */
-function syncTogglesUI() {
-    document.querySelectorAll('#weather-layers .btn-toggle').forEach(btn => {
-        const id = btn.dataset.layerId;
-        btn.classList.toggle('active', !!(id && state.layers[id]));
-    });
-    updateCurrentVarLabel();
-}
-
-function setWeatherLayer(selectedId) {
-    if (!selectedId) return;
-
-    state.layers[selectedId] = !state.layers[selectedId];
-
-    if (state.uiMode === 'simple' && SIMPLE_LAYER_IDS.includes(selectedId)) {
-        if (state.layers[selectedId]) {
-            state.activeScalarVarIds = [];
-            SIMPLE_LAYER_IDS.forEach(lid => {
-                if (lid !== selectedId) state.layers[lid] = false;
-            });
-        }
-        applyDerivedCurrentVar();
-        syncVarButtonsActive();
-        syncTogglesUI();
-        updateModeVisibility();
-        updateImage();
-        return;
-    }
-
-    // Mutual exclusivity for cloud layers
-    if (state.layers[selectedId] && isCloudVariable(selectedId)) {
-        for (const layerId in state.layers) {
-            if (layerId !== selectedId && isCloudVariable(layerId)) {
-                state.layers[layerId] = false;
-            }
-        }
-    }
-
-    syncTogglesUI();
-    updateImage();
-}
-
 function setDomain(dom) {
     // This function is now manually called by setDomainInternal but kept for legacy or forced switches
     setDomainInternal(dom);
@@ -1317,322 +434,10 @@ function setDomain(dom) {
     }
 }
 
-function populateDates() {
-    // Combine Latest + Archive
-    const dates = [
-        ...state.manifest.dataset_dates.latest,
-        ...state.manifest.dataset_dates.archive
-    ];
-
-    els.dateSelector.innerHTML = '';
-    dates.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d;
-        opt.textContent = d;
-        els.dateSelector.appendChild(opt);
-    });
-
-
-
-    if (dates.length > 0) {
-        // Try to select Today
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${yyyy}-${mm}-${dd}`;
-
-        if (dates.includes(todayStr)) {
-            state.currentDate = todayStr;
-        } else {
-            // Default to latest available (first in list)
-            state.currentDate = dates[0];
-        }
-        // Sync UI
-        els.dateSelector.value = state.currentDate;
-    }
-    updateAvailableHours();
-}
-
-function updateAvailableHours() {
-    const date = state.currentDate;
-    // Get hours from manifest or default 0..23
-    let hours = [];
-    if (state.manifest.hours && state.manifest.hours[date]) {
-        hours = state.manifest.hours[date];
-    }
-
-    // Fallback if empty (e.g. data missing but folder exists?) or manifest older
-    if (!hours || hours.length === 0) {
-        hours = Array.from({ length: 24 }, (_, i) => i);
-    }
-
-    state.availableHours = hours;
-
-    // Default to the first element if no other logic matches
-    let newIndex = 0;
-
-    // Reset or clamp index
-    const prevHour = state.currentHour;
-
-    // Si la fecha seleccionada es hoy, intentar usar la hora actual + offset utc, o la más cercana anterior
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-
-    // Si estamos inicializando en el día de hoy o cambiamos al día de hoy, y venimos de prevHour == 0 o primera carga
-    if (state.currentDate === todayStr && prevHour === 0) {
-        const utcCurrentHour = today.getUTCHours();
-
-        // Buscar la hora más cercana disponible menor o igual a la actual
-        // hours[] suele contener timestamps enteros (ej: 0, 1, 2, ..., 23) interpolados
-        for (let i = hours.length - 1; i >= 0; i--) {
-            if (hours[i] <= utcCurrentHour) {
-                newIndex = i;
-                break;
-            }
-        }
-    } else {
-        // Lógica original: intentar recuperar la hora previa si cambiamos de día
-        const foundIndex = hours.indexOf(prevHour);
-        if (foundIndex !== -1) {
-            newIndex = foundIndex;
-        }
-    }
-
-    state.currentHourIndex = newIndex;
-    state.currentHour = hours[newIndex];
-
-    // Update Slider
-    // els.timeSlider.max = hours.length - 1;
-    // els.timeSlider.value = newIndex;
-
-    // Update Min/Max Labels
-    // document.getElementById('time-min').textContent = getTimeString(hours[0]).substring(0, 2) + ":00" || "00:00";
-    // document.getElementById('time-max').textContent = getTimeString(hours[hours.length - 1]).substring(0, 2) + ":00" || "23:00";
-
-    els.timeSelector.innerHTML = '';
-    hours.forEach(h => {
-        const opt = document.createElement('option');
-        opt.value = h;
-        const utcHour = getTimeString(h).substring(0, 2);
-        const dateStr = state.currentDate;
-        const isoStr = `${dateStr}T${utcHour}:00:00Z`;
-        const d = new Date(isoStr);
-        const localHour = String(d.getHours()).padStart(2, '0');
-        opt.textContent = `${localHour}:00`;
-        els.timeSelector.appendChild(opt);
-    });
-
-    if (hours.length <= 1) {
-        document.getElementById('prev-time-btn').classList.add('hidden');
-        document.getElementById('next-time-btn').classList.add('hidden');
-    } else {
-        document.getElementById('prev-time-btn').classList.remove('hidden');
-        document.getElementById('next-time-btn').classList.remove('hidden');
-    }
-
-    updateTimeSelectorUI();
-}
-
-/*
-function updateViewTypeVisibility() {
-    // Logic moved to updateUIForType
-}
-*/
-
-function populateVarButtons() {
-    const vars = state.manifest && state.manifest.configuration
-        && state.manifest.configuration.variables
-        ? state.manifest.configuration.variables : [];
-    const containers = {
-        wind:  document.getElementById('vars-wind'),
-        other: document.getElementById('vars-other'),
-        clouds: document.getElementById('vars-clouds')
-    };
-    if (!containers.wind || !containers.other) return;
-    containers.wind.innerHTML = '';
-    containers.other.innerHTML = '';
-    if (containers.clouds) containers.clouds.innerHTML = '';
-
-    vars.forEach(v => {
-        if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
-        if (state.uiMode === 'simple' && !SIMPLE_SCALAR_IDS.includes(v.id)) return;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-toggle';
-        btn.dataset.varId = v.id;
-        const iconSrc = VAR_ICONS[v.id];
-        if (iconSrc) {
-            const img = document.createElement('img');
-            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
-            btn.appendChild(img);
-        }
-        const label = (v.id in VAR_SHORT_LABELS) ? VAR_SHORT_LABELS[v.id] : (v.title || v.id);
-        if (label) {
-            const span = document.createElement('span'); span.textContent = label;
-            btn.appendChild(span);
-        } else if (iconSrc) {
-            btn.classList.add('icon-only');
-        }
-        if (state.activeScalarVarIds.includes(v.id)) btn.classList.add('active');
-        btn.onclick = () => toggleScalarVariable(v.id);
-        let target;
-        if (CLOUD_VAR_IDS.has(v.id) && containers.clouds) target = containers.clouds;
-        else if (WIND_VAR_IDS.has(v.id)) target = containers.wind;
-        else target = containers.other;
-        target.appendChild(btn);
-    });
-    updateCurrentVarLabel();
-}
-
-function syncVarButtonsActive() {
-    document.querySelectorAll('#vars-wind .btn-toggle, #vars-other .btn-toggle, #vars-clouds .btn-toggle').forEach(btn => {
-        btn.classList.toggle('active', state.activeScalarVarIds.includes(btn.dataset.varId));
-    });
-    updateCurrentVarLabel();
-}
-
-function updateCurrentVarLabel() {
-    const labelEl = document.getElementById('current-var-label');
-    if (!labelEl) return;
-    const parts = [];
-    const cfg = state.manifest && state.manifest.configuration;
-    if (cfg && cfg.variables) {
-        state.activeScalarVarIds.forEach(id => {
-            const v = cfg.variables.find(x => x.id === id);
-            if (v) {
-                const units = v.units ? ` (${v.units})` : '';
-                parts.push((v.title || id) + units);
-            }
-        });
-    }
-    if (cfg && cfg.layers) {
-        cfg.layers.forEach(layer => {
-            if (state.layers[layer.id]) {
-                const units = layer.units ? ` (${layer.units})` : '';
-                parts.push((layer.title || layer.id) + units);
-            }
-        });
-    }
-    if (parts.length === 0) {
-        labelEl.classList.add('hidden');
-        labelEl.textContent = '';
-    } else {
-        labelEl.textContent = parts.join(' · ');
-        labelEl.classList.remove('hidden');
-    }
-}
-
-function populateVars() {
-    const vars = state.manifest.configuration.variables || [];
-
-    state.activeScalarVarIds = state.activeScalarVarIds.filter(
-        id => vars.some(v => v.id === id) && !HIDDEN_UI_VAR_IDS.has(id)
-    );
-    if (state.uiMode === 'simple') {
-        const allow = new Set(SIMPLE_SCALAR_IDS);
-        state.activeScalarVarIds = state.activeScalarVarIds.filter(id => allow.has(id));
-        if (state.activeScalarVarIds.length > 1) {
-            state.activeScalarVarIds = [state.activeScalarVarIds[0]];
-        }
-    }
-    if (state.activeScalarVarIds.length === 0) {
-        if (state.uiMode === 'simple') {
-            state.activeScalarVarIds = [];
-        } else {
-            const sfcwind = vars.find(v => v.id === 'sfcwind');
-            if (sfcwind) state.activeScalarVarIds = [sfcwind.id];
-            else {
-                const vis = vars.find(v => !HIDDEN_UI_VAR_IDS.has(v.id));
-                if (vis) state.activeScalarVarIds = [vis.id];
-            }
-        }
-    }
-
-    if (els.varSelector) els.varSelector.innerHTML = '';
-
-    const noneOpt = document.createElement('option');
-    noneOpt.value = 'none';
-    noneOpt.textContent = 'Ocultar';
-    if (els.varSelector) els.varSelector.appendChild(noneOpt);
-
-    vars.forEach(v => {
-        if (HIDDEN_UI_VAR_IDS.has(v.id)) return;
-        if (state.uiMode === 'simple' && !SIMPLE_SCALAR_IDS.includes(v.id)) return;
-        const opt = document.createElement('option');
-        opt.value = v.id;
-        opt.textContent = v.title || v.id;
-        if (els.varSelector) els.varSelector.appendChild(opt);
-    });
-
-    applyDerivedCurrentVar();
-
-    populateVarButtons();
-    updateModeVisibility();
-}
-
-let __appStarted = false;
-
-/** Barra Meteonube arriba: só no modo simple (non existe no HTML en vuelo). */
-function ensureSimpleTopBrand() {
-    const root = document.querySelector('.app-root');
-    if (!root || root.querySelector('.simple-top-brand')) return;
-    const hdr = document.createElement('header');
-    hdr.className = 'simple-top-brand';
-    hdr.setAttribute('aria-label', 'Meteonube');
-    const a = document.createElement('a');
-    a.href = 'https://meteonube.es';
-    a.className = 'simple-top-brand-link';
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.title = 'meteonube.es';
-    const spanIcon = document.createElement('span');
-    spanIcon.className = 'simple-top-brand-icon';
-    spanIcon.setAttribute('aria-hidden', 'true');
-    spanIcon.textContent = '⛅';
-    const spanText = document.createElement('span');
-    spanText.className = 'simple-top-brand-text';
-    spanText.textContent = 'Meteonube';
-    a.appendChild(spanIcon);
-    a.appendChild(spanText);
-    hdr.appendChild(a);
-    root.insertBefore(hdr, root.firstChild);
-}
-
-function removeSimpleTopBrand() {
-    document.querySelector('.app-root .simple-top-brand')?.remove();
-}
-
-function applyUiModeAndStart(mode) {
-    if (__appStarted) return;
-    __appStarted = true;
-    state.uiMode = mode;
-    document.body.classList.toggle('theme-simple', mode === 'simple');
-    document.body.classList.toggle('theme-flight', mode === 'flight');
-    const picker = document.getElementById('mode-picker-overlay');
-    if (picker) picker.classList.add('hidden');
-    if (mode === 'simple') {
-        state.soundingsMode = 'hidden';
-        state.layers.soundings = false;
-        state.layers.takeoffs_names = false;
-        state.layers.rain = true;
-        state.layers.blcloudpct = false;
-        state.layers.lowfrac = false;
-        state.layers.midfrac = false;
-        state.layers.highfrac = false;
-        state.layers.provinces = false;
-        state.activeScalarVarIds = [];
-        ensureSimpleTopBrand();
-    } else {
-        removeSimpleTopBrand();
-    }
-    init();
-}
 
 function bootApp() {
+    wireUiDeps();
+    wireMapDeps();
     const fromUrl = readUiModeFromUrl();
     if (fromUrl) {
         persistUiMode(fromUrl);
@@ -1667,10 +472,6 @@ function bootApp() {
 }
 
 // --- Logic ---
-
-function getTimeString(h) {
-    return h.toString().padStart(2, '0') + '00';
-}
 
 function getBasePath() {
     const base = state.manifest.base_path;
@@ -1737,6 +538,7 @@ async function updateDataGrid(varId) {
     const url = `${dayPath}/${hhmm}_${varId}.json`;
 
     if (state.gridLoadingMap[varId] === url) return;
+    if (state.gridFailedUrlMap[varId] === url) return;
 
     const isWind = WIND_SPEED_VAR_IDS.has(varId);
     const currentZoom = state.map ? state.map.getZoom() : 5;
@@ -1782,6 +584,7 @@ async function updateDataGrid(varId) {
 
             // Update cache maps
             state.gridLoadedUrlMap[varId] = url;
+            delete state.gridFailedUrlMap[varId];
             if (isWind) state.gridVectorModeMap[varId] = cacheKey;
 
             // Refresh UI if this variable is active as scalar or as manifest layer
@@ -1790,6 +593,7 @@ async function updateDataGrid(varId) {
             }
         } else {
             state.gridDataMap[varId] = null;
+            state.gridFailedUrlMap[varId] = url;
         }
     } catch (e) {
         console.error("Error loading data grid", e);
@@ -1799,132 +603,8 @@ async function updateDataGrid(varId) {
     }
 }
 
-function getPointData(latlng, varId) {
-    if (!latlng || !varId) return null;
-    const gridData = state.gridDataMap[varId];
-    if (!gridData || !gridData.grid) return null;
-
-    const bounds = getDomainBounds();
-    if (!bounds) return null;
-
-    const g = gridData.grid;
-    const b = bounds.toBBoxString().split(',').map(Number);
-    const left = b[0], bottom = b[1], right = b[2], top = b[3];
-
-    // Normalize coordinates (handle [lat, lon] array or {lat, lng} object)
-    let lat, lng;
-    if (Array.isArray(latlng)) {
-        lat = latlng[0];
-        lng = latlng[1];
-    } else {
-        lat = latlng.lat;
-        lng = latlng.lng;
-    }
-
-    const col = Math.floor((lng - left) / (right - left) * g.nx);
-    const row = Math.floor((lat - bottom) / (top - bottom) * g.ny);
-
-    if (col >= 0 && col < g.nx && row >= 0 && row < g.ny) {
-        const idx = row * g.nx + col;
-        let value = null;
-        let dir = null;
-
-        if (g.twsKn) {
-            value = g.twsKn[idx];
-            dir = g.twdDeg[idx];
-        } else if (g.values) {
-            value = g.values[idx];
-        }
-
-        if (value !== null && value !== undefined) {
-            const vConfig = state.manifest.configuration.variables.find(v => v.id === varId) ||
-                state.manifest.configuration.layers.find(v => v.id === varId);
-            const varTitle = vConfig ? vConfig.title : varId;
-            const units = gridData.units || '';
-
-            return { value, units, dir, title: varTitle };
-        }
-    }
-    return null;
-}
-
-function updateTooltip(latlng, stationName = null) {
-    // Prevent tooltip from showing if a modal is open
-    if (document.body.classList.contains('has-modal')) {
-        els.windTooltip.classList.add('hidden');
-        return;
-    }
-
-    if (!latlng) {
-        els.windTooltip.classList.add('hidden');
-        return;
-    }
-
-    // Handle station name
-    if (els.wtStationName) {
-        if (stationName) {
-            els.wtStationName.textContent = stationName;
-            els.wtStationName.classList.remove('hidden');
-        } else {
-            els.wtStationName.classList.add('hidden');
-        }
-    }
-
-    const activeVarId = getActiveScalarVarId();
-    const data = getPointData(latlng, activeVarId);
-
-    if (data) {
-        if (els.wtVarName) els.wtVarName.textContent = data.title;
-        if (els.wtValue) els.wtValue.textContent = data.value.toFixed(1);
-        if (els.wtUnits) els.wtUnits.textContent = data.units;
-
-        // Direction handling
-        if (data.dir !== null && data.dir !== undefined) {
-            if (els.wtDirDeg) {
-                els.wtDirDeg.textContent = Math.round(data.dir);
-                els.wtDirDeg.parentElement.classList.remove('hidden');
-            }
-            if (els.wtDirArrow) els.wtDirArrow.style.transform = `rotate(${(data.dir + 180) % 360}deg)`;
-        } else {
-            if (els.wtDirDeg) els.wtDirDeg.parentElement.classList.add('hidden');
-        }
-
-        // Tooltip position
-        const containerPoint = state.map.latLngToContainerPoint(latlng);
-        els.windTooltip.style.left = `${containerPoint.x}px`;
-        els.windTooltip.style.top = `${containerPoint.y}px`;
-        els.windTooltip.classList.remove('hidden');
-        return;
-    }
-
-    els.windTooltip.classList.add('hidden');
-}
 
 /** Aplica state.variableLayerOpacity a imageOverlays, liñas de vento e canvas de partículas */
-function syncVariableDataLayersOpacity() {
-    if (!state.map) return;
-    const o = state.variableLayerOpacity;
-    Object.keys(state.scalarOverlayByVarId).forEach(vid => {
-        const lyr = state.scalarOverlayByVarId[vid];
-        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
-    });
-    if (state.vectorOverlay && state.vectorOverlay.setOpacity) {
-        state.vectorOverlay.setOpacity(o);
-    }
-    Object.keys(state.dynamicOverlays).forEach(k => {
-        const lyr = state.dynamicOverlays[k];
-        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
-    });
-    if (state.vectorLayerGroup) {
-        state.vectorLayerGroup.eachLayer(lyr => {
-            if (lyr && lyr.setStyle) {
-                lyr.setStyle({ opacity: o, fillOpacity: o });
-            }
-        });
-    }
-    const windCanvas = document.getElementById('wind-particles');
-    if (windCanvas) windCanvas.style.opacity = String(o);
-}
 
 function updateMapOverlays() {
     if (!state.map) return;
@@ -2031,100 +711,6 @@ function updateMapOverlays() {
     syncVariableDataLayersOpacity();
 }
 
-function getActiveScalarVarId() {
-    let activeVar = derivePrimaryCurrentVar();
-    if (state.manifest && state.manifest.configuration.layers) {
-        state.manifest.configuration.layers.forEach(l => {
-            if (state.layers[l.id]) activeVar = l.id;
-        });
-    }
-    return activeVar;
-}
-
-function getDomainBounds() {
-    if (!state.manifest || !state.manifest.configuration || !state.manifest.configuration.domain_bounds) return null;
-    const db = state.manifest.configuration.domain_bounds;
-    const b = db[state.currentDomain];
-    if (!b) {
-        // Fallback to first domain if not found
-        const first = Object.keys(db)[0];
-        const fb = db[first];
-        if (!fb) return null;
-        return L.latLngBounds([fb.bottom, fb.left], [fb.top, fb.right]);
-    }
-    return L.latLngBounds([b.bottom, b.left], [b.top, b.right]);
-}
-
-function updateLeafletOverlay(existingLayer, show, url, bounds, options) {
-    if (!show || url === 'STREAMLINES_NATIVE') {
-        if (existingLayer) state.map.removeLayer(existingLayer);
-        return null;
-    }
-
-    if (existingLayer) {
-        if (existingLayer._url === url) {
-            if (options && options.opacity !== undefined) {
-                existingLayer.setOpacity(options.opacity);
-            }
-            return existingLayer;
-        }
-        state.map.removeLayer(existingLayer);
-    }
-
-    const newLayer = L.imageOverlay(url, bounds, options).addTo(state.map);
-    return newLayer;
-}
-
-function updateSoundingImage() {
-    if (!state.currentStation) return;
-    const s = findStationInConfig(state.currentStation);
-    const domain = s ? s.domain : 'd01';
-    const dateCompact = state.currentDate.replace(/-/g, '');
-    const hhmm = getTimeString(state.currentHour);
-    const base = state.manifest.base_path;
-    const dayPath = `${base}/${domain}/${dateCompact}`;
-    const fname = `${hhmm}_sounding_${state.currentStation}.webp`;
-    loadImage(els.imgSounding, `${dayPath}/${fname}`);
-}
-
-function updateMeteogramImage() {
-    if (!state.currentStation) return;
-    const s = findStationInConfig(state.currentStation);
-    const domain = s ? s.domain : 'd01';
-    const dateCompact = state.currentDate.replace(/-/g, '');
-    const base = state.manifest.base_path;
-    const dayPath = `${base}/${domain}/${dateCompact}`;
-    const fname = `meteogram_${state.currentStation}.webp`;
-    loadImage(els.imgMeteogram, `${dayPath}/${fname}`);
-}
-
-function findStationInConfig(id) {
-    if (!state.manifest || !state.manifest.configuration.soundings) return null;
-    const map = state.manifest.configuration.soundings;
-    let found = null;
-    Object.keys(map).forEach(dom => {
-        const s = map[dom].find(x => x.id === id);
-        if (s) {
-            s.domain = dom; // Should be tagged already if from updateMarkers, but safe
-            found = s;
-        }
-    });
-    return found;
-}
-
-function loadImage(imgEl, src) {
-    // Simple load with error hiding
-    const img = new Image();
-    img.onload = () => {
-        imgEl.src = src;
-        imgEl.classList.remove('hidden');
-    };
-    img.onerror = () => {
-        console.error("Failed to load image:", src);
-        imgEl.classList.add('hidden'); // Hide if missing
-    };
-    img.src = src;
-}
 
 function toggleLayer(imgEl, show, src) {
     if (show) {
@@ -2136,289 +722,8 @@ function toggleLayer(imgEl, show, src) {
 
 // --- Time & Animation ---
 
-function updateTimeSelectorUI() {
-    if (els.timeSelector && state.currentHour !== null) {
-        els.timeSelector.value = state.currentHour;
-    }
-}
 
-function stepDay(dir) {
-    resumeParticlesAfterContextChange();
-    const dates = Array.from(els.dateSelector.options).map(o => o.value);
-    const currentDateIdx = dates.indexOf(state.currentDate);
-    
-    if (currentDateIdx === -1) return;
-    
-    const currentDt = new Date(state.currentDate);
-    const nextDt = new Date(currentDt);
-    if (dir > 0) {
-        nextDt.setDate(currentDt.getDate() + 1); // Día Siguiente
-    } else {
-        nextDt.setDate(currentDt.getDate() - 1); // Día Anterior
-    }
-
-    const yyyy = nextDt.getFullYear();
-    const mm = String(nextDt.getMonth() + 1).padStart(2, '0');
-    const dd = String(nextDt.getDate()).padStart(2, '0');
-    const nextDateStr = `${yyyy}-${mm}-${dd}`;
-
-    if (dates.includes(nextDateStr)) {
-        state.currentDate = nextDateStr;
-        els.dateSelector.value = nextDateStr;
-        updateAvailableHours();
-        updateImage();
-    }
-}
-
-function stepTime(dir) {
-    resumeParticlesAfterContextChange();
-    let newIdx = state.currentHourIndex + dir;
-    const max = state.availableHours.length;
-
-    // Check if we need to change day
-    if (newIdx >= max || newIdx < 0) {
-        // Find current date index
-        const dates = Array.from(els.dateSelector.options).map(o => o.value);
-        const currentDateIdx = dates.indexOf(state.currentDate);
-
-        // Determine next date index
-        // dates are usually sorted Descending (Latest -> Archive)? 
-        // populateDates sorts: Latest + Archive.
-        // scan_availability sorts: Latest (Desc?), Archive (Desc?).
-        // If dates are [2026-02-18, 2026-02-17], then index 0 is tomorrow, index 1 is today.
-        // We need to check the actual date values to be sure or rely on the list order.
-        // Let's assume the list is [Future...Today...Past].
-        // Next Day (Time forward) -> value > current or index - 1?
-        // Wait, "Next Day" means Time + 24h.
-        // If list is sorted Descending (Newest first):
-        //   Forward in time -> Move to a date that is "newer" than current? No.
-        //   Forward in time -> Move to Next Calendar Day.
-
-        // Let's do robust date math.
-        const currentDt = new Date(state.currentDate);
-        const nextDt = new Date(currentDt);
-        if (dir > 0) {
-            // Forward -> Next Day
-            nextDt.setDate(currentDt.getDate() + 1);
-        } else {
-            // Backward -> Prev Day
-            nextDt.setDate(currentDt.getDate() - 1);
-        }
-
-        const yyyy = nextDt.getFullYear();
-        const mm = String(nextDt.getMonth() + 1).padStart(2, '0');
-        const dd = String(nextDt.getDate()).padStart(2, '0');
-        const nextDateStr = `${yyyy}-${mm}-${dd}`;
-
-        if (dates.includes(nextDateStr)) {
-            // Switch Date
-            state.currentDate = nextDateStr;
-            els.dateSelector.value = nextDateStr;
-            updateAvailableHours();
-
-            // Set hour
-            if (dir > 0) {
-                // Moving Forward: Came from end of prev day -> Start of new day
-                state.currentHourIndex = 0;
-            } else {
-                // Moving Backward: Came from start of next day -> End of prev day
-                state.currentHourIndex = state.availableHours.length - 1;
-            }
-            state.currentHour = state.availableHours[state.currentHourIndex];
-        } else {
-            // No next/prev day available -> Loop within current day
-            if (newIdx >= max) newIdx = 0;
-            if (newIdx < 0) newIdx = max - 1;
-            state.currentHourIndex = newIdx;
-            state.currentHour = state.availableHours[newIdx];
-        }
-    } else {
-        // Within same day
-        state.currentHourIndex = newIdx;
-        state.currentHour = state.availableHours[newIdx];
-    }
-
-    updateTimeSelectorUI();
-    updateImage();
-}
-
-// Start (elixir modo primeiro se non hai URL nin localStorage)
-bootApp();
-
-/**
- * Optimized Wind Particle Engine
- */
-class WindParticles {
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.ctx = canvas ? canvas.getContext('2d') : null;
-        this.grid = null;
-        this.animFrame = null;
-        this.numParticles = 800;
-        this.maxAge = 80;
-        this.speedFactor = 0.8;
-        this.particleColor = 'rgba(0, 255, 255, 0.8)';
-        // Typed array for better performance [x, y, age]
-        this.particles = new Float32Array(this.numParticles * 3);
-    }
-
-    setGrid(gridData) {
-        const grid = gridData && gridData.grid;
-        if (!gridData || !grid) {
-            this.grid = null;
-            this.stop();
-            return;
-        }
-        if (this.grid === grid && (this.animFrame || state.particlesPaused)) return;
-
-        this.grid = grid;
-        this.initParticles();
-        if (state.particlesPaused) {
-            if (this.animFrame) {
-                cancelAnimationFrame(this.animFrame);
-                this.animFrame = null;
-            }
-            return;
-        }
-        this.start();
-    }
-
-    freezeAnimation() {
-        if (this.animFrame) {
-            cancelAnimationFrame(this.animFrame);
-            this.animFrame = null;
-        }
-    }
-
-    unfreezeAnimation() {
-        if (this.grid && !this.animFrame) this.start();
-    }
-
-    initParticles() {
-        if (!this.canvas) return;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-        for (let i = 0; i < this.numParticles; i++) {
-            this.particles[i * 3] = Math.random() * w;     // x
-            this.particles[i * 3 + 1] = Math.random() * h; // y
-            this.particles[i * 3 + 2] = Math.random() * this.maxAge; // age
-        }
-    }
-
-    start() {
-        if (this.animFrame) return;
-        this.lastTime = performance.now();
-        this.render(this.lastTime);
-    }
-
-    stop() {
-        if (this.animFrame) {
-            cancelAnimationFrame(this.animFrame);
-            this.animFrame = null;
-        }
-        if (this.ctx && this.canvas) {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        }
-    }
-
-    render(time) {
-        if (!state.map || !this.grid || !this.canvas || !this.canvas.width || !this.ctx) return;
-        if (state.particlesPaused) return;
-
-        let deltaTime = time - (this.lastTime || time);
-        this.lastTime = time;
-        if (deltaTime > 100) deltaTime = 16.666;
-        const timeScale = deltaTime / 16.666;
-
-        const bounds = getDomainBounds();
-        if (!bounds) return;
-
-        // Trails effect
-        this.ctx.globalCompositeOperation = 'destination-in';
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.globalCompositeOperation = 'source-over';
-
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = this.particleColor;
-        this.ctx.lineWidth = 1.0;
-
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-        const g = this.grid;
-        const gNx = g.nx;
-        const gNy = g.ny;
-        const tws = g.twsKn;
-        const twd = g.twdDeg;
-
-        // OPTIMIZATION: Project corners once per frame instead of every particle
-        const nw = state.map.containerPointToLatLng([0, 0]);
-        const se = state.map.containerPointToLatLng([w, h]);
-        const lonRange = se.lng - nw.lng;
-        const latRange = se.lat - nw.lat;
-
-        const b = bounds.toBBoxString().split(',').map(Number); // [west, south, east, north]
-        const domainWest = b[0], domainSouth = b[1], domainEast = b[2], domainNorth = b[3];
-        const domainLonR = domainEast - domainWest;
-        const domainLatR = domainNorth - domainSouth;
-
-        for (let i = 0; i < this.numParticles; i++) {
-            const idx = i * 3;
-            let px = this.particles[idx];
-            let py = this.particles[idx + 1];
-            let page = this.particles[idx + 2];
-
-            if (page > this.maxAge) {
-                px = Math.random() * w;
-                py = Math.random() * h;
-                page = 0;
-            }
-
-            // High-performance linear interpolation for lat/lon
-            const pLon = nw.lng + (px / w) * lonRange;
-            const pLat = nw.lat + (py / h) * latRange;
-
-            // Map LatLng to Grid indices
-            const col = Math.floor((pLon - domainWest) / domainLonR * gNx);
-            const row = Math.floor((pLat - domainSouth) / domainLatR * gNy);
-
-            if (col >= 0 && col < gNx && row >= 0 && row < gNy) {
-                const gIdx = row * gNx + col;
-                const speed = tws[gIdx] || 0;
-                const dir = ((twd[gIdx] || 0) + 180) * (Math.PI / 180);
-
-                const vx = Math.sin(dir) * speed * this.speedFactor * 0.12 * timeScale;
-                const vy = -Math.cos(dir) * speed * this.speedFactor * 0.12 * timeScale;
-
-                this.ctx.moveTo(px, py);
-                px += vx;
-                py += vy;
-                this.ctx.lineTo(px, py);
-                page++;
-
-                // Respawn if out of viewport
-                if (px < 0 || px > w || py < 0 || py > h) {
-                    page = this.maxAge + 1;
-                }
-            } else {
-                px = Math.random() * w;
-                py = Math.random() * h;
-                page = 0;
-            }
-
-            this.particles[idx] = px;
-            this.particles[idx + 1] = py;
-            this.particles[idx + 2] = page;
-        }
-        this.ctx.stroke();
-
-        if (!state.particlesPaused) {
-            this.animFrame = requestAnimationFrame((newTime) => this.render(newTime));
-        } else {
-            this.animFrame = null;
-        }
-    }
-}
+// Arranque: bootApp() chámase desde receiveCentralState() cando estado + utils + particles están listos
 
 /**
  * Dynamic Grid Overlay Generator
@@ -2446,37 +751,6 @@ async function generateAllGridOverlays() {
     for (const varId in state.gridDataMap) {
         await generateGridOverlay(varId);
     }
-}
-
-function getRampColor(val, ramp) {
-    if (!ramp) ramp = COLOR_RAMPS.wind;
-    const first = ramp[0];
-    const last = ramp[ramp.length - 1];
-
-    const getColor = (stop) => ({
-        r: stop.c[0], g: stop.c[1], b: stop.c[2],
-        a: stop.c.length > 3 ? stop.c[3] : 1.0
-    });
-
-    if (val <= first.v) return getColor(first);
-    if (val >= last.v) return getColor(last);
-
-    for (let i = 0; i < ramp.length - 1; i++) {
-        const r1 = ramp[i];
-        const r2 = ramp[i + 1];
-        if (val >= r1.v && val <= r2.v) {
-            const p = (val - r1.v) / (r2.v - r1.v);
-            const c1 = getColor(r1);
-            const c2 = getColor(r2);
-            return {
-                r: Math.round(c1.r + (c2.r - c1.r) * p),
-                g: Math.round(c1.g + (c2.g - c1.g) * p),
-                b: Math.round(c1.b + (c2.b - c1.b) * p),
-                a: c1.a + (c2.a - c1.a) * p
-            };
-        }
-    }
-    return { r: 0, g: 0, b: 0, a: 0 };
 }
 
 async function generateGridImageDataURL(gridData) {
@@ -2716,266 +990,3 @@ let gradientScaleLabelsLayoutRaf = null;
  * Reparte etiquetas da escala entre fila inferior e superior só cando,
  * medindo no DOM, detectamos solapamento horizontal na fila inferior.
  */
-function layoutGradientScaleLabels() {
-    if (!els.dynamicScale || els.dynamicScale.classList.contains('hidden')) return;
-    const overlay = els.dynamicScale.querySelector('.scale-labels-overlay');
-    if (!overlay) return;
-    const spans = [...overlay.querySelectorAll('span')];
-    if (spans.length <= 1) return;
-
-    for (const el of spans) el.classList.remove('scale-label--row-top');
-    void overlay.offsetWidth;
-
-    const cRect = overlay.getBoundingClientRect();
-    if (cRect.width < 1) return;
-
-    const items = spans.map(el => {
-        const r = el.getBoundingClientRect();
-        return { el, left: r.left - cRect.left, right: r.right - cRect.left };
-    }).sort((a, b) => a.left - b.left);
-
-    const GAP = 2;
-    let rowBottomRight = -Infinity;
-    let rowTopRight = -Infinity;
-
-    for (const { el, left, right } of items) {
-        const fitsBottom = left >= rowBottomRight + GAP;
-        const fitsTop = left >= rowTopRight + GAP;
-        if (fitsBottom) {
-            rowBottomRight = Math.max(rowBottomRight, right);
-        } else if (fitsTop) {
-            el.classList.add('scale-label--row-top');
-            rowTopRight = Math.max(rowTopRight, right);
-        } else {
-            const overlapB = Math.max(0, rowBottomRight + GAP - left);
-            const overlapT = Math.max(0, rowTopRight + GAP - left);
-            if (overlapT <= overlapB) {
-                el.classList.add('scale-label--row-top');
-                rowTopRight = Math.max(rowTopRight, right);
-            } else {
-                rowBottomRight = Math.max(rowBottomRight, right);
-            }
-        }
-    }
-}
-
-function scheduleGradientScaleLabelsLayout() {
-    if (!els.dynamicScale) return;
-    if (gradientScaleLabelsLayoutRaf != null) cancelAnimationFrame(gradientScaleLabelsLayoutRaf);
-    gradientScaleLabelsLayoutRaf = requestAnimationFrame(() => {
-        gradientScaleLabelsLayoutRaf = null;
-        layoutGradientScaleLabels();
-    });
-}
-
-/**
- * Update Dynamic Scale UI
- */
-function updateDynamicScale(varId) {
-    const ramp = getRampForVariable(varId);
-    if (!ramp || !els.dynamicScale) return;
-
-    const lastStop = ramp[ramp.length - 1];
-    const maxVal = lastStop.v;
-    const minVal = ramp[0].v;
-
-    const gradientStops = ramp.map((stop, i) => {
-        const pct = ((stop.v - minVal) / (maxVal - minVal) * 100).toFixed(0);
-        const r = stop.c[0];
-        const g = stop.c[1];
-        const b = stop.c[2];
-        const a = stop.c.length > 3 ? stop.c[3] : 1.0;
-        return `rgb(${r}, ${g}, ${b}) ${pct}%`;
-    }).join(', ');
-
-    els.dynamicScale.innerHTML = `
-        <div class="scale-body scale-body--full">
-            <div class="scale-gradient-container">
-                <div class="scale-gradient" style="background: linear-gradient(to right, ${gradientStops});">
-                    <div class="scale-labels-overlay">
-                        ${ramp.map(step => {
-        const pos = ((step.v - minVal) / (maxVal - minVal) * 100).toFixed(1);
-        return `<span style="left: ${pos}%;">${Math.round(step.v)}</span>`;
-    }).join('')}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    scheduleGradientScaleLabelsLayout();
-}
-
-const COLOR_RAMPS = {
-    // Wind Speed (km/h) - 15 levels (0-60 typical)
-    wind: [
-        { v: 0.0, c: [239, 239, 239, 0.4] },
-        { v: 4.3, c: [166, 206, 227, 0.6] },
-        { v: 8.6, c: [31, 120, 180, 0.7] },
-        { v: 12.9, c: [178, 223, 138, 0.7] },
-        { v: 17.1, c: [51, 160, 44, 0.7] },
-        { v: 21.4, c: [255, 242, 138, 0.7] },
-        { v: 25.7, c: [255, 228, 0, 0.8] },
-        { v: 30.0, c: [253, 191, 111, 0.8] },
-        { v: 34.3, c: [255, 127, 0, 0.8] },
-        { v: 38.6, c: [251, 154, 153, 0.9] },
-        { v: 42.9, c: [227, 26, 28, 0.9] },
-        { v: 47.1, c: [202, 178, 214, 0.9] },
-        { v: 51.4, c: [106, 61, 154, 0.9] },
-        { v: 55.7, c: [148, 0, 87, 0.9] },
-        { v: 60.0, c: [80, 0, 40, 0.9] }
-    ],
-
-    // Rain (mm/h) - Custom ramp from colormaps.py
-    rain: [
-        { v: 0.0, c: [255, 255, 255, 0.0] },
-        { v: 0.1, c: [154, 231, 236, 0.2] },
-        { v: 0.5, c: [154, 231, 236, 0.9] },
-        { v: 1.0, c: [31, 120, 180, 0.9] },
-        { v: 2.0, c: [178, 223, 138, 0.9] },
-        { v: 4.0, c: [51, 160, 44, 0.9] },
-        { v: 8.0, c: [255, 242, 138, 0.9] },
-        { v: 12.0, c: [255, 228, 0, 0.9] },
-        { v: 16.0, c: [253, 191, 111, 0.9] },
-        { v: 20.0, c: [255, 127, 0, 0.9] }
-    ],
-
-    // Convergences (m/s) - 15 levels (-3 to 3)
-    convergencias: [
-        { v: -3.0, c: [0, 67, 196, 0.7] },
-        { v: -2.6, c: [31, 120, 180, 0.7] },
-        { v: -2.1, c: [166, 206, 227, 0.7] },
-        { v: -1.7, c: [0, 169, 167, 0.7] },
-        { v: -1.3, c: [152, 235, 238, 0.7] },
-        { v: -0.8, c: [51, 160, 44, 0.7] },
-        { v: -0.4, c: [178, 223, 138, 0.7] },
-        { v: 0.0, c: [248, 253, 133, 0.2] },
-        { v: 0.4, c: [255, 228, 0, 0.7] },
-        { v: 0.8, c: [253, 191, 111, 0.7] },
-        { v: 1.3, c: [255, 127, 0, 0.7] },
-        { v: 1.7, c: [251, 154, 153, 0.7] },
-        { v: 2.1, c: [227, 26, 28, 0.7] },
-        { v: 2.6, c: [202, 178, 214, 0.7] },
-        { v: 3.0, c: [106, 61, 154, 0.7] }
-    ],
-
-    // Thermals (m/star) - 17 levels (0-3.75)
-    thermals: [
-        { v: 0.00, c: [239, 239, 239, 0.4] },
-        { v: 0.23, c: [203, 223, 233, 0.4] },
-        { v: 0.47, c: [166, 206, 227, 0.5] },
-        { v: 0.70, c: [31, 120, 180, 0.6] },
-        { v: 0.94, c: [208, 231, 189, 0.6] },
-        { v: 1.17, c: [178, 223, 138, 0.7] },
-        { v: 1.41, c: [51, 160, 44, 0.7] },
-        { v: 1.64, c: [244, 246, 186, 0.7] },
-        { v: 1.88, c: [248, 253, 133, 0.8] },
-        { v: 2.11, c: [255, 228, 0, 0.8] },
-        { v: 2.34, c: [246, 215, 175, 0.8] },
-        { v: 2.58, c: [253, 191, 111, 0.8] },
-        { v: 2.81, c: [255, 127, 0, 0.9] },
-        { v: 3.05, c: [245, 197, 196, 0.9] },
-        { v: 3.28, c: [251, 154, 153, 0.9] },
-        { v: 3.52, c: [227, 26, 28, 0.9] },
-        { v: 3.75, c: [127, 0, 0, 0.9] }
-    ],
-
-    // Clouds (%)
-    clouds: [
-        { v: 0, c: [255, 255, 255, 0.0] },
-        { v: 10, c: [255, 255, 255, 0.05] },
-        { v: 30, c: [250, 250, 250, 0.2] },
-        { v: 50, c: [240, 240, 240, 0.35] },
-        { v: 70, c: [225, 225, 225, 0.5] },
-        { v: 85, c: [210, 210, 210, 0.6] },
-        { v: 100, c: [195, 195, 205, 0.7] } // Opacidad limitada a 0.7 para nunca tapar el mapa geográfico
-    ],
-
-    // Cloud Fraction (0.0 to 1.0) para variables como low_cloudfrac, mid_cloudfrac, high_cloudfrac
-    clouds_frac: [
-        { v: 0.0, c: [255, 255, 255, 0.0] },
-        { v: 0.1, c: [255, 255, 255, 0.05] },
-        { v: 0.3, c: [250, 250, 250, 0.15] },
-        { v: 0.5, c: [240, 240, 240, 0.3] },
-        { v: 0.7, c: [225, 225, 225, 0.45] },
-        { v: 0.85, c: [210, 210, 210, 0.55] },
-        { v: 1.0, c: [195, 195, 205, 0.65] } // Opacidad pico de 0.65 para permitir la suma de capas (low+mid+high)
-    ],
-
-    // CAPE (J/kg)
-    cape: [
-        { v: 0, c: [166, 206, 227, 0.5] },
-        { v: 111, c: [31, 120, 180, 0.6] },
-        { v: 370, c: [178, 223, 138, 0.7] },
-        { v: 926, c: [51, 160, 44, 0.7] },
-        { v: 1963, c: [253, 191, 111, 0.8] },
-        { v: 3000, c: [255, 127, 0, 0.9] }
-    ],
-
-    // Temperature (ºC) - Rainbow ramp (-5 to 45)
-    temperature: [
-        { v: -5, c: [128, 0, 128, 0.7] },
-        { v: 0, c: [0, 0, 255, 0.7] },
-        { v: 5, c: [0, 150, 255, 0.7] },
-        { v: 10, c: [0, 255, 255, 0.7] },
-        { v: 15, c: [0, 255, 0, 0.7] },
-        { v: 20, c: [150, 255, 0, 0.7] },
-        { v: 25, c: [255, 255, 0, 0.7] },
-        { v: 30, c: [255, 200, 0, 0.7] },
-        { v: 35, c: [255, 127, 0, 0.7] },
-        { v: 40, c: [255, 0, 0, 0.7] },
-        { v: 45, c: [150, 0, 0, 0.7] }
-    ],
-
-    // Heights (m) - Proportional to WindSpeed palette (500-4000)
-    heights: [
-        { v: 500, c: [239, 239, 239, 0.4] },
-        { v: 750, c: [166, 206, 227, 0.6] },
-        { v: 1000, c: [31, 120, 180, 0.7] },
-        { v: 1250, c: [178, 223, 138, 0.7] },
-        { v: 1500, c: [51, 160, 44, 0.7] },
-        { v: 1750, c: [255, 242, 138, 0.7] },
-        { v: 2000, c: [255, 228, 0, 0.8] },
-        { v: 2250, c: [253, 191, 111, 0.8] },
-        { v: 2500, c: [255, 127, 0, 0.8] },
-        { v: 2750, c: [251, 154, 153, 0.9] },
-        { v: 3000, c: [227, 26, 28, 0.9] },
-        { v: 3250, c: [202, 178, 214, 0.9] },
-        { v: 3500, c: [106, 61, 154, 0.9] },
-        { v: 3750, c: [148, 0, 87, 0.9] },
-        { v: 4000, c: [80, 0, 40, 0.9] }
-    ]
-};
-
-function isCloudVariable(varId) {
-    if (!varId) return false;
-    const v = varId.toLowerCase();
-    let title = '';
-
-    // Buscar en manifest para chequear el nombre
-    if (state.manifest && state.manifest.configuration) {
-        let l = null;
-        if (state.manifest.configuration.layers) l = state.manifest.configuration.layers.find(x => x.id === varId);
-        if (!l && state.manifest.configuration.variables) l = state.manifest.configuration.variables.find(x => x.id === varId);
-        if (l && l.title) title = l.title.toLowerCase();
-    }
-
-    // Detect typical WRF cloud ids: hcc, mcc, lcc, cloudfrac, blcloudpct
-    return v.includes('cloud') || v.includes('cfrac') || v.includes('cld') || v.includes('nub') ||
-        v === 'hcc' || v === 'mcc' || v === 'lcc' ||
-        title.includes('nube') || title.includes('nubosidad') || title.includes('cloud');
-}
-
-function getRampForVariable(varId) {
-    if (!varId) return COLOR_RAMPS.wind;
-    const v = varId.toLowerCase();
-    if (v.includes('wind')) return COLOR_RAMPS.wind;
-    if (v === 'rain') return COLOR_RAMPS.rain;
-    if (v === 'wblmaxmin') return COLOR_RAMPS.convergencias;
-    if (v === 'wstar') return COLOR_RAMPS.thermals;
-    if (v.includes('cloudfrac') || v.includes('cfrac') || v === 'hcc' || v === 'mcc' || v === 'lcc') return COLOR_RAMPS.clouds_frac;
-    if (isCloudVariable(varId)) return COLOR_RAMPS.clouds;
-    if (v === 'cape') return COLOR_RAMPS.cape;
-    if (v === 't2m' || v.includes('temp')) return COLOR_RAMPS.temperature;
-    if (v === 'hglider' || v.includes('zbl') || v.includes('zsf')) return COLOR_RAMPS.heights;
-    return COLOR_RAMPS.wind;
-}
