@@ -150,12 +150,6 @@ export function updateMarkers() {
                     if (e.originalEvent) e.originalEvent.stopPropagation();
                     marker.openPopup();
                 });
-                touchMarker.on('mouseover', (e) => {
-                    updateTooltip(e.latlng, s.name);
-                });
-                touchMarker.on('mouseout', () => {
-                    updateTooltip(null);
-                });
                 const activeVarId = getActiveScalarVarId();
                 const pointData = getPointData([s.lat, s.lon], activeVarId);
                 let dataHtml = '';
@@ -179,6 +173,7 @@ export function updateMarkers() {
                     offset: [0, 0]
                 });
                 marker.on('popupopen', () => {
+                    deps.els.windTooltip.classList.add('hidden');
                     const btn = marker.getPopup()?.getElement()?.querySelector('.popup-btn');
                     if (btn) {
                         btn.onclick = (ev) => {
@@ -186,6 +181,9 @@ export function updateMarkers() {
                             openSounding(s.id);
                         };
                     }
+                });
+                marker.on('popupclose', () => {
+                    deps.els.windTooltip.classList.add('hidden');
                 });
                 state.markers.push(marker);
                 state.markers.push(touchMarker);
@@ -516,9 +514,13 @@ function getPointData(latlng, varId) {
     }
     return null;
 }
+function isMapPopupOpen() {
+    return !!(state.map && state.map._popup && state.map._popup.isOpen());
+}
+
 export function updateTooltip(latlng, stationName = null) {
-    // Prevent tooltip from showing if a modal is open
-    if (document.body.classList.contains('has-modal')) {
+    // No tapar popups de sondeos ni o modais
+    if (document.body.classList.contains('has-modal') || isMapPopupOpen()) {
         deps.els.windTooltip.classList.add('hidden');
         return;
     }
@@ -1113,7 +1115,10 @@ export function setupControls() {
     // Map events for tooltip
     if (state.map) {
         state.map.on('mousemove', (e) => {
-            if (!state.isTooltipPinned) updateTooltip(e.latlng);
+            if (!state.isTooltipPinned && !isMapPopupOpen()) updateTooltip(e.latlng);
+        });
+        state.map.on('popupopen', () => {
+            deps.els.windTooltip.classList.add('hidden');
         });
         state.map.on('mouseout', () => {
             if (!state.isTooltipPinned) deps.els.windTooltip.classList.add('hidden');

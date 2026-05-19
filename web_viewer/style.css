@@ -1030,6 +1030,11 @@ input[type=range] {
     border-right: 1px solid #ccc;
 }
 
+/* Popups de sondeos por encima do tooltip de vento (z-index 1000) */
+.leaflet-pane.leaflet-popup-pane {
+    z-index: 1010;
+}
+
 /* Sounding Popup Styles */
 .custom-sounding-popup .leaflet-popup-content-wrapper {
     background: var(--bg-panel);
