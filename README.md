@@ -117,10 +117,18 @@ pos_process/
   │   └── ... 
 
 web_viewer/
-  ├── index.html
+  ├── index.html          # Carga app.js (clásico) + js/main.js (módulo ES6)
   ├── style.css
-  └── app.js
+  ├── app.js              # Arranque, datos WRF, renderizado de grids (~1k líneas)
+  ├── manifest.json       # Generado por gen_manifest.py (no versionado en git)
   ├── run_server.sh
+  └── js/
+      ├── main.js         # Orquestador: conecta módulos con app.js
+      ├── store.js        # Estado global (state)
+      ├── utils.js        # Constantes, rampas de color, helpers
+      ├── particles.js    # Animación de partículas de viento
+      ├── ui.js           # Interfaz: timeline, sondeos, toggles, escala
+      └── map.js          # Mapa Leaflet, dominios, overlays
 ```
 
 ## 4. Componentes Principales
@@ -195,6 +203,28 @@ pip install "netcdf4<1.7"
 
 Para facilitar la visualización de los productos generados sin navegar por el sistema de ficheros, se incluye una aplicación web estática bajo `web_viewer`.
 
+### Arquitectura del frontend (modular)
+
+El visor se cargó en **módulos ES6** manteniendo compatibilidad con un núcleo en script clásico:
+
+1. **`index.html`** carga primero `app.js` y después `js/main.js` (`type="module"`).
+2. **`main.js`** importa `store`, `utils`, `particles`, `ui` y `map`, y llama a `window.__appReady(...)` para conectar todo con `app.js`.
+3. **`app.js`** conserva la lógica que aún no está extraída: carga de grids JSON, generación de capas raster/vectoriales, `updateImage()` y arranque (`bootApp` / `init`).
+4. **`manifest.json`** lo genera `pos_process/gen_manifest.py` y **no se sube a git** (`.gitignore`); en el servidor debe reflejar las fechas que existen realmente en `PLOTS/`.
+
+**División aproximada de responsabilidades:**
+
+| Módulo | Rol |
+|--------|-----|
+| `store.js` | Estado único compartido (`state`) |
+| `utils.js` | Constantes, etiquetas, rampas de color |
+| `particles.js` | Motor de partículas de viento |
+| `ui.js` | Controles, timeline, sondeos, tooltips, modo simple/vuelo |
+| `map.js` | Leaflet, dominios, overlays de imagen |
+| `app.js` | Datos WRF, caché de grids, orquestación con el manifest |
+
+Tras publicar cambios en CSS o JS, conviene **incrementar el parámetro `?v=…`** en `index.html` (`app.js` y `style.css`) para evitar caché antigua en los navegadores.
+
 ### Ejecución del Servidor Web
 Debido a políticas de seguridad de los navegadores (CORS), la aplicación no funciona correctamente abriendo el archivo `index.html` directamente (protocolo `file://`). Se requiere un entorno servidor que sirva el visor y proporcione acceso al interior del directorio de gráficas originadas en pos-proceso.
 
@@ -229,4 +259,5 @@ Pasos relevantes del flujo:
 **Notas:**
 
 - Los cambios que **no** tocan `web_viewer/` **no** disparan este despliegue (está acotado por `paths` en el workflow).
-- El visor referencia `style.css` y similares con un parámetro **`?v=…`** en `index.html` para mitigar caché del navegador tras publicar; conviene **incrementar ese número** cuando cambies CSS o JS y quieras forzar recarga inmediata en los clientes.
+- El visor referencia `app.js` y `style.css` con un parámetro **`?v=…`** en `index.html` para mitigar caché del navegador tras publicar; conviene **incrementar ese número** cuando cambies CSS o JS y quieras forzar recarga inmediata en los clientes.
+- Los módulos en `js/` no llevan versión en la URL; al cambiarlos, basta con subir el despliegue y recargar con **Ctrl+Shift+R** (o incrementar también `?v=` de `app.js` si el navegador insiste en caché).
