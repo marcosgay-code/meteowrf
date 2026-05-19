@@ -48,6 +48,8 @@ function applyUiModule(ui) {
     stepDay = ui.stepDay;
     stepTime = ui.stepTime;
     updateTooltip = ui.updateTooltip;
+    openSounding = ui.openSounding;
+    window.openSounding = ui.openSounding;
     updateMarkers = ui.updateMarkers;
     cycleSoundingsMode = ui.cycleSoundingsMode;
     applySoundingsModeFromCycle = ui.applySoundingsModeFromCycle;

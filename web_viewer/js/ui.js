@@ -171,12 +171,21 @@ export function updateMarkers() {
                     <div class="sounding-popup">
                         <strong>${s.name}</strong>
                         ${dataHtml}
-                        <button class="popup-btn" onclick="openSounding('${s.id}')">ver gráficas</button>
+                        <button type="button" class="popup-btn">ver gráficas</button>
                     </div>
                 `;
                 marker.bindPopup(popupContent, {
                     className: 'custom-sounding-popup',
                     offset: [0, 0]
+                });
+                marker.on('popupopen', () => {
+                    const btn = marker.getPopup()?.getElement()?.querySelector('.popup-btn');
+                    if (btn) {
+                        btn.onclick = (ev) => {
+                            ev.preventDefault();
+                            openSounding(s.id);
+                        };
+                    }
                 });
                 state.markers.push(marker);
                 state.markers.push(touchMarker);
