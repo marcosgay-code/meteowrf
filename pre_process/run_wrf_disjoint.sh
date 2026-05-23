@@ -32,6 +32,7 @@ show_usage() {
     echo "Variables de Entorno:"
     echo "  INT_SEC (Defecto: interval_seconds de namelist.wps). n deber ser multiplo de 3600"
     echo "  MPI_PROCS (Defecto: 1). ${max_procs_info}"
+    echo "  DAY_START_OFFSET (Defecto: 0). Primer offset de día a simular (0=hoy, 1=mañana, ...)"
     exit 1
 }
 
@@ -581,6 +582,12 @@ else
     DAYS_TO_RUN=3
 fi
 
+DAY_START_OFFSET=${DAY_START_OFFSET:-0}
+if ! [[ "$DAY_START_OFFSET" =~ ^[0-9]+$ ]]; then
+    echo "Error: DAY_START_OFFSET debe ser un entero >= 0."
+    exit 1
+fi
+
 # Validar fecha
 if ! validate_date "$date_input"; then
     exit 1
@@ -631,6 +638,7 @@ if [ -n "${1-}" ]; then
 else
     echo "No se proporcionó fecha, usando hora UTC más reciente: $date_input"
 fi
+echo "Días a simular: $DAYS_TO_RUN | Horas/día: $HOURS_PER_DAY | DAY_START_OFFSET: $DAY_START_OFFSET"
 
 # MPI_PROCS: Lee de variable de entorno o usa 1 como default. La validación se hace después.
 MPI_PROCS=${MPI_PROCS:-1}
@@ -725,16 +733,15 @@ fi
 echo "✓ geogrid.exe completado"
 end_timer "geogrid.exe"
 
-MAX_DAY_OFFSET=$(( DAYS_TO_RUN - 1 ))
-if [ $MAX_DAY_OFFSET -lt 0 ]; then MAX_DAY_OFFSET=0; fi
-for DAY_OFFSET in $(seq 0 $MAX_DAY_OFFSET); do
+MAX_DAY_OFFSET=$(( DAY_START_OFFSET + DAYS_TO_RUN - 1 ))
+if [ $MAX_DAY_OFFSET -lt $DAY_START_OFFSET ]; then MAX_DAY_OFFSET=$DAY_START_OFFSET; fi
+for DAY_OFFSET in $(seq $DAY_START_OFFSET $MAX_DAY_OFFSET); do
     echo "====================================================="
     echo " PROCESANDO DÍA +${DAY_OFFSET} (Arranque en frío)"
     echo "====================================================="
     
-    # Calcular horas de previsión respecto al ciclo GFS (00:00 UTC)
-    # Queremos de 06:00 UTC (08:00 local) a 19:00 UTC (21:00 local)
-    F_START=$(( DAY_OFFSET * 24 + 6 ))
+    # Horas de previsión respecto al ciclo GFS; ventana 06:00–19:00 UTC (ciclos 00/06/12/18)
+    F_START=$(( DAY_OFFSET * 24 + 6 - 10#$hour ))
     
     # Ajuste dinámico del F_END basado en INT_HOURS
     DURACION_DESEADA=$HOURS_PER_DAY

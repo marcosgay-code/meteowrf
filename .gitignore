@@ -33,6 +33,9 @@ pre_process/dependencias_wrf/
 pre_process/Build_WRF/
 pre_process/TESTS/
 
+# Configuración local de Cursor (reglas del agente, etc.)
+.cursor/
+
 # Ignorar archivos de configuración sensibles
 config.ini
 pos_process/force_upload.sh
