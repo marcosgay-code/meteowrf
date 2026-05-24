@@ -520,6 +520,32 @@ function isMapPopupOpen() {
     return !!(state.map && state.map._popup && state.map._popup.isOpen());
 }
 
+const MAP_OVERLAY_CLICK_SHIELD =
+    '.timeline-controls, .opacity-container, .scale-meta-row, .leaflet-control, .leaflet-control-container';
+
+function isMapChromeTarget(target) {
+    if (!target || !(target instanceof Element)) return false;
+    return !!target.closest(MAP_OVERLAY_CLICK_SHIELD);
+}
+
+function dismissPinnedTooltip() {
+    if (!state.map) return;
+    if (state.clickMarker) {
+        state.map.removeLayer(state.clickMarker);
+        state.clickMarker = null;
+    }
+    state.isTooltipPinned = false;
+    deps.els.windTooltip.classList.add('hidden');
+}
+
+/** Evita que toques na barra data/hora (dentro de #map) abran o tooltip de datos */
+function setupMapOverlayClickShield() {
+    document.querySelectorAll('.timeline-controls, .opacity-container, .scale-meta-row').forEach((el) => {
+        L.DomEvent.disableClickPropagation(el);
+        L.DomEvent.disableScrollPropagation(el);
+    });
+}
+
 export function updateTooltip(latlng, stationName = null) {
     // No tapar popups de sondeos ni o modais
     if (document.body.classList.contains('has-modal') || isMapPopupOpen()) {
@@ -926,6 +952,7 @@ export function setupControls() {
         opacityToggleBtn.addEventListener('click', () => {
             const isOpen = opacityContainer.classList.toggle('show');
             opacityToggleBtn.classList.toggle('active', isOpen);
+            if (isOpen) dismissPinnedTooltip();
         });
     }
 
@@ -1102,6 +1129,8 @@ export function setupControls() {
 
     // Map events for tooltip
     if (state.map) {
+        setupMapOverlayClickShield();
+
         state.map.on('mousemove', (e) => {
             if (!state.isTooltipPinned && !isMapPopupOpen()) updateTooltip(e.latlng);
         });
@@ -1112,14 +1141,13 @@ export function setupControls() {
             if (!state.isTooltipPinned) deps.els.windTooltip.classList.add('hidden');
         });
         state.map.on('click', (e) => {
+            if (isMapChromeTarget(e.originalEvent?.target)) {
+                if (state.isTooltipPinned) dismissPinnedTooltip();
+                return;
+            }
+
             if (state.isTooltipPinned) {
-                // If a tooltip is already open, close it and don't open a new one on this click
-                if (state.clickMarker) {
-                    state.map.removeLayer(state.clickMarker);
-                    state.clickMarker = null;
-                }
-                state.isTooltipPinned = false;
-                deps.els.windTooltip.classList.add('hidden');
+                dismissPinnedTooltip();
                 return;
             }
 

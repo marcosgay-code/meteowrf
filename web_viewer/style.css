@@ -345,14 +345,18 @@ select:focus {
 
 /* Escritorio: timeline fixo arriba; opacidade despliégase por riba da timeline */
 @media (min-width: 1025px) {
-    .viewer .map-viewer {
-        padding-top: 40px;
-        box-sizing: border-box;
-        transition: padding-top 0.15s ease;
+    .viewer {
+        --desktop-top-bar: 40px;
     }
 
-    .viewer:has(.opacity-container.show) .map-viewer {
-        padding-top: 178px;
+    .viewer:has(.opacity-container.show) {
+        --desktop-top-bar: 178px;
+    }
+
+    .viewer .map-viewer {
+        padding-top: var(--desktop-top-bar);
+        box-sizing: border-box;
+        transition: padding-top 0.15s ease;
     }
 
     .scale-wrf-bundle > .timeline-controls {
@@ -377,6 +381,29 @@ select:focus {
         z-index: 1001;
         padding: 0.35rem 1rem 0.3rem;
         border-bottom: 1px solid var(--border);
+    }
+
+    /* Zoom, capas e pausa: por baixo da barra data/hora fixa */
+    .viewer #map .leaflet-top {
+        margin-top: 0 !important;
+    }
+
+    .viewer #map .leaflet-top.leaflet-left,
+    .viewer #map .leaflet-top.leaflet-right {
+        position: fixed;
+        top: calc(var(--desktop-top-bar) + 4px);
+        z-index: 900;
+        transition: top 0.15s ease;
+    }
+
+    .viewer #map .leaflet-top.leaflet-left {
+        left: calc(var(--sidebar-width, 380px) + 10px);
+        right: auto;
+    }
+
+    .viewer #map .leaflet-top.leaflet-right {
+        right: 10px;
+        left: auto;
     }
 }
 
