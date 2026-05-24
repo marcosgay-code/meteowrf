@@ -41,7 +41,8 @@ body.has-modal {
 
 .app-container {
     display: grid;
-    grid-template-columns: 380px 1fr;
+    grid-template-columns: var(--sidebar-width, 380px) 1fr;
+    --sidebar-width: 380px;
     flex: 1;
     min-height: 0;
     height: auto;
@@ -306,6 +307,9 @@ select:focus {
 
 /* Bundle só como columna compacta sen panel gris; mapa ocupando o máximo ó mapa */
 .scale-wrf-bundle {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -315,6 +319,65 @@ select:focus {
     border-radius: 0;
     box-shadow: none;
     backdrop-filter: none;
+}
+
+/* Timeline e opacidade dentro do bundle (móbil: Actualizado → opacidade → data/hora → gradiente) */
+.scale-wrf-bundle > .timeline-controls,
+.scale-wrf-bundle > .opacity-container {
+    pointer-events: auto;
+    flex-shrink: 0;
+}
+
+.scale-wrf-bundle > .timeline-controls {
+    position: static;
+    top: auto;
+    width: 100%;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.scale-wrf-bundle > .opacity-container.opacity-container--above-timeline {
+    margin: 0;
+    padding: 0.35rem 0.35rem 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Escritorio: timeline fixo arriba; opacidade despliégase por riba da timeline */
+@media (min-width: 1025px) {
+    .viewer .map-viewer {
+        padding-top: 40px;
+        box-sizing: border-box;
+        transition: padding-top 0.15s ease;
+    }
+
+    .viewer:has(.opacity-container.show) .map-viewer {
+        padding-top: 178px;
+    }
+
+    .scale-wrf-bundle > .timeline-controls {
+        position: fixed;
+        top: 0;
+        left: var(--sidebar-width, 380px);
+        right: 0;
+        width: auto;
+        z-index: 1000;
+        transition: top 0.15s ease;
+    }
+
+    .scale-wrf-bundle:has(.opacity-container.show) > .timeline-controls {
+        top: 138px;
+    }
+
+    .scale-wrf-bundle > .opacity-container.opacity-container--above-timeline {
+        position: fixed;
+        top: 0;
+        left: var(--sidebar-width, 380px);
+        right: 0;
+        z-index: 1001;
+        padding: 0.35rem 1rem 0.3rem;
+        border-bottom: 1px solid var(--border);
+    }
 }
 
 /* Actualizado + escala Leaflet na mesma liña; pegados ao bordo superior do gradiente */
@@ -567,7 +630,7 @@ body.scale-gradient-hide-details #current-var-label {
 }
 
 .timeline-controls.timeline-controls--compact .timeline-date {
-    max-width: min(118px, 32vw);
+    max-width: min(108px, 30vw);
 }
 
 .timeline-controls.timeline-controls--compact .timeline-time {
@@ -893,11 +956,7 @@ input[type=range] {
         font-size: 1.2rem;
     }
 
-    /* Timeline Controls is already styled sticky globally, just ensuring width here */
-    .timeline-controls {
-        left: 0;
-        width: 100%;
-    }
+    /* Timeline xa está no bundle de escala; mapa ocupa todo o viewer */
 }
 
 /* Wind Tooltip Styles */
@@ -1172,23 +1231,78 @@ input[type=range] {
     gap: 0.45rem;
 }
 
-.opacity-container.opacity-container--below-timeline {
+.opacity-container.opacity-container--above-timeline {
     margin-top: 0;
     margin-bottom: 0;
-    padding: 0 0.35rem 0.35rem;
+    padding: 0.35rem 0.35rem 0.25rem;
     background-color: rgba(31, 41, 55, 0.98);
     flex-shrink: 0;
 }
 
 .opacity-container.show { display: flex; }
+.opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+.opacity-row .opacity-label {
+    flex: 0 0 auto;
+    max-width: 42%;
+    line-height: 1.2;
+}
+.opacity-row input[type=range] {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+}
+.opacity-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.1rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--border);
+}
+.opacity-mode-row > .opacity-label {
+    flex: 0 0 auto;
+}
+.opacity-mode-toggle {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 0.35rem;
+    min-width: 0;
+}
+.opacity-mode-btn {
+    flex: 1 1 0;
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--text-secondary);
+    background: var(--bg-dark);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.opacity-mode-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.opacity-mode-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
 #btn-opacity-toggle.active {
     background: var(--accent);
     border-color: var(--accent);
     color: white;
 }
 .opacity-label { font-size: 0.75rem; color: var(--text-secondary); }
-#opacity-slider,
-#variable-opacity-slider { width: 100%; }
 
 /* Etiqueta de variable activa sobre el mapa */
 .current-var-label {
@@ -1245,26 +1359,27 @@ input[type=range] {
     .sidebar-overlay { display: none !important; }
     .modal-content { padding: 4rem 1rem 1rem 1rem; gap: 1rem; }
     .modal-close-btn { top: 1rem; right: 1rem; width: 32px; height: 32px; font-size: 1.2rem; }
-    /* Unifica co sidebar; sen bordo nin sombra ficticia */
-    .timeline-controls {
+    /* Timeline dentro do bundle de escala (Actualizado → opacidade → data/hora → gradiente) */
+    .scale-wrf-bundle > .timeline-controls {
         left: 0;
         width: 100%;
         border: none;
         outline: none;
         box-shadow: none;
         margin: 0;
-        margin-top: 0;
         padding-top: 0.25rem;
         padding-bottom: 0.25rem;
         background-color: rgba(31, 41, 55, 1);
-        flex-shrink: 0;
     }
-    .timeline-controls.timeline-controls--compact {
+    .scale-wrf-bundle > .timeline-controls.timeline-controls--compact {
         padding: 0.12rem 0.2rem;
         gap: 2px;
         row-gap: 2px;
         flex-wrap: nowrap;
         justify-content: flex-start;
+    }
+    .scale-wrf-bundle > .opacity-container.opacity-container--above-timeline {
+        background-color: rgba(31, 41, 55, 0.98);
     }
     .sidebar .control-group#overlays-group {
         gap: 0.15rem;
@@ -1353,9 +1468,7 @@ input[type=range] {
     border-color: var(--accent-hover);
 }
 
-body.theme-simple #btn-sounding-cycle,
-body.theme-simple #btn-opacity-toggle,
-body.theme-simple #opacity-container {
+body.theme-simple #btn-sounding-cycle {
     display: none !important;
 }
 

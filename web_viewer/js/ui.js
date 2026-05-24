@@ -17,10 +17,12 @@ import {
   LAYER_ORDER,
   LS_OPACITY_MAP_KEY,
   LS_OPACITY_VARS_KEY,
+  LS_UI_MODE_KEY,
   VAR_ICONS,
   HIDDEN_UI_VAR_IDS,
   scalarVarCategory,
-  isCloudVariable as isCloudVarUtil
+  isCloudVariable as isCloudVarUtil,
+  formatDateSelectorLabel
 } from './utils.js';
 
 let deps = {};
@@ -926,6 +928,16 @@ export function setupControls() {
             opacityToggleBtn.classList.toggle('active', isOpen);
         });
     }
+
+    const opacityModeSimple = document.getElementById('opacity-mode-simple');
+    const opacityModeFlight = document.getElementById('opacity-mode-flight');
+    if (opacityModeSimple) {
+        opacityModeSimple.addEventListener('click', () => switchUiMode('simple'));
+    }
+    if (opacityModeFlight) {
+        opacityModeFlight.addEventListener('click', () => switchUiMode('flight'));
+    }
+    syncOpacityModeButtons();
     if (deps.els.closeModalBtn) {
         deps.els.closeModalBtn.addEventListener('click', () => {
             deps.els.overlayContainer.classList.add('hidden');
@@ -1000,31 +1012,7 @@ export function setupControls() {
         const bi = LAYER_ORDER.indexOf(b.id);
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-    sortedLayers.forEach(layer => {
-        if (state.uiMode === 'simple' && !SIMPLE_LAYER_IDS.includes(layer.id)) return;
-        if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-toggle';
-        btn.dataset.layerId = layer.id;
-
-        const iconSrc = LAYER_ICONS[layer.id];
-        if (iconSrc) {
-            const img = document.createElement('img');
-            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
-            btn.appendChild(img);
-        }
-        const label = (layer.id in LAYER_SHORT_LABELS) ? LAYER_SHORT_LABELS[layer.id] : layer.title;
-        if (label) {
-            const span = document.createElement('span'); span.textContent = label;
-            btn.appendChild(span);
-        } else if (iconSrc) {
-            btn.classList.add('icon-only');
-        }
-        if (state.layers[layer.id]) btn.classList.add('active');
-        btn.onclick = () => { setWeatherLayer(layer.id); syncTogglesUI(); };
-        document.getElementById('weather-layers').appendChild(btn);
-    });
+    rebuildWeatherLayerButtons(sortedLayers);
 
     // Sondeos: ciclo 🪂 na liña da data (esquerda do día)
     const btnSoundingCycle = document.getElementById('btn-sounding-cycle');
@@ -1231,7 +1219,7 @@ export function populateDates() {
     dates.forEach(d => {
         const opt = document.createElement('option');
         opt.value = d;
-        opt.textContent = d;
+        opt.textContent = formatDateSelectorLabel(d);
         deps.els.dateSelector.appendChild(opt);
     });
 
@@ -1362,6 +1350,93 @@ export function populateVars() {
 
 let __appStarted = false;
 
+function persistUiMode(mode) {
+    try {
+        localStorage.setItem(LS_UI_MODE_KEY, mode);
+    } catch (e) { /* */ }
+}
+
+function rebuildWeatherLayerButtons(sortedLayers) {
+    const container = document.getElementById('weather-layers');
+    if (!container || !state.manifest?.configuration?.layers) return;
+    const layers = sortedLayers || [...state.manifest.configuration.layers].sort((a, b) => {
+        const ai = LAYER_ORDER.indexOf(a.id);
+        const bi = LAYER_ORDER.indexOf(b.id);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    container.innerHTML = '';
+    layers.forEach(layer => {
+        if (state.uiMode === 'simple' && !SIMPLE_LAYER_IDS.includes(layer.id)) return;
+        if (typeof state.layers[layer.id] === 'undefined') state.layers[layer.id] = false;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-toggle';
+        btn.dataset.layerId = layer.id;
+
+        const iconSrc = LAYER_ICONS[layer.id];
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc; img.alt = ''; img.className = 'btn-icon';
+            btn.appendChild(img);
+        }
+        const label = (layer.id in LAYER_SHORT_LABELS) ? LAYER_SHORT_LABELS[layer.id] : layer.title;
+        if (label) {
+            const span = document.createElement('span'); span.textContent = label;
+            btn.appendChild(span);
+        } else if (iconSrc) {
+            btn.classList.add('icon-only');
+        }
+        if (state.layers[layer.id]) btn.classList.add('active');
+        btn.onclick = () => { setWeatherLayer(layer.id); syncTogglesUI(); };
+        container.appendChild(btn);
+    });
+}
+
+function syncOpacityModeButtons() {
+    const bSimple = document.getElementById('opacity-mode-simple');
+    const bFlight = document.getElementById('opacity-mode-flight');
+    if (!bSimple || !bFlight) return;
+    bSimple.classList.toggle('active', state.uiMode === 'simple');
+    bFlight.classList.toggle('active', state.uiMode === 'flight');
+}
+
+function applyUiModeCore(mode) {
+    state.uiMode = mode;
+    document.body.classList.toggle('theme-simple', mode === 'simple');
+    document.body.classList.toggle('theme-flight', mode === 'flight');
+    if (mode === 'simple') {
+        state.soundingsMode = 'hidden';
+        state.layers.soundings = false;
+        state.layers.takeoffs_names = false;
+        state.layers.rain = true;
+        state.layers.blcloudpct = false;
+        state.layers.lowfrac = false;
+        state.layers.midfrac = false;
+        state.layers.highfrac = false;
+        state.layers.provinces = false;
+        ensureSimpleTopBrand();
+    } else {
+        removeSimpleTopBrand();
+    }
+    syncOpacityModeButtons();
+    persistUiMode(mode);
+}
+
+/** Cambia entre modo simple e voo desde o panel de opacidade (ou outro control). */
+export function switchUiMode(mode) {
+    if (mode !== 'simple' && mode !== 'flight') return;
+    if (state.uiMode === mode) return;
+    applyUiModeCore(mode);
+    rebuildWeatherLayerButtons();
+    populateVars();
+    syncTogglesUI();
+    applySoundingsModeFromCycle();
+    syncSoundingsCycleUI();
+    updateUIForType();
+    updateMarkers();
+    if (deps.updateImage) deps.updateImage();
+}
+
 /** Barra Meteonube arriba: só no modo simple (non existe no HTML en vuelo). */
 function ensureSimpleTopBrand() {
     const root = document.querySelector('.app-root');
@@ -1395,25 +1470,8 @@ function removeSimpleTopBrand() {
 export function applyUiModeAndStart(mode) {
     if (__appStarted) return;
     __appStarted = true;
-    state.uiMode = mode;
-    document.body.classList.toggle('theme-simple', mode === 'simple');
-    document.body.classList.toggle('theme-flight', mode === 'flight');
+    applyUiModeCore(mode);
     const picker = document.getElementById('mode-picker-overlay');
     if (picker) picker.classList.add('hidden');
-    if (mode === 'simple') {
-        state.soundingsMode = 'hidden';
-        state.layers.soundings = false;
-        state.layers.takeoffs_names = false;
-        state.layers.rain = true;
-        state.layers.blcloudpct = false;
-        state.layers.lowfrac = false;
-        state.layers.midfrac = false;
-        state.layers.highfrac = false;
-        state.layers.provinces = false;
-        state.activeScalarVarIds = [];
-        ensureSimpleTopBrand();
-    } else {
-        removeSimpleTopBrand();
-    }
     if (deps.startApp) deps.startApp();
 }
