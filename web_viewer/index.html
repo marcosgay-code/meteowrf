@@ -28,7 +28,7 @@
     <title>Meteonube</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=37">
+    <link rel="stylesheet" href="style.css?v=51">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -81,8 +81,10 @@
                     <div class="btn-cluster" id="vars-clouds"></div>
                     <div class="btn-cluster" id="vars-wind"></div>
                     <div class="btn-cluster" id="vars-other"></div>
-                    <div class="sidebar-bordes-widget">
-                        <label class="btn-toggle btn-toggle--inverse"><input type="checkbox" id="toggle-provinces" checked><span>Bordes</span></label>
+                    <div class="sidebar-radar-widget">
+                        <button type="button" class="btn-toggle" id="toggle-radar" data-layer-id="radar" title="Radar de precipitación AEMET — A Coruña (Galicia, observación)">
+                            <span>📡 Radar</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -129,6 +131,9 @@
                                         <button type="button" id="opacity-mode-flight" class="opacity-mode-btn">Voo</button>
                                     </div>
                                 </div>
+                                <div class="opacity-bordes-row">
+                                    <label class="btn-toggle btn-toggle--inverse opacity-bordes-btn"><input type="checkbox" id="toggle-provinces" checked><span>Bordes</span></label>
+                                </div>
                             </div>
                             <div class="timeline-controls timeline-controls--compact">
                                 <div class="control-group-inline" id="date-controls">
@@ -142,6 +147,16 @@
                                     <button id="prev-time-btn" class="time-nav-btn" aria-label="Hora anterior">⏮</button>
                                     <select id="time-selector" class="timeline-time"></select>
                                     <button id="next-time-btn" class="time-nav-btn" aria-label="Hora siguiente">⏭</button>
+                                </div>
+                                <div class="control-group-inline radar-time-controls hidden" id="radar-time-controls">
+                                    <div class="radar-time-stack">
+                                        <div class="radar-time-caption">Reflectividad radar (dBZ) · AEMET</div>
+                                        <div class="radar-time-row">
+                                            <span id="radar-time-label" class="radar-time-label" aria-live="polite">--:--</span>
+                                            <input type="range" id="radar-time-slider" class="radar-time-slider" min="0" max="11" value="11" aria-label="Hora do radar (observación)">
+                                            <button type="button" id="btn-radar-play" class="time-nav-btn" title="Animar radar (observación)" aria-label="Animar radar">▶</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="timeline-controls-trailing">
                                     <button type="button" id="btn-opacity-toggle" class="time-nav-btn timeline-opacity-btn" aria-label="Mostrar ou ocultar controis de opacidade (mapa e capas de datos)">🎚️</button>
@@ -181,7 +196,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=62"></script>
+    <script type="module" src="js/main.js?v=93"></script>
 </body>
 
 </html>

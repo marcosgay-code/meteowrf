@@ -169,8 +169,8 @@ setup_plots_link() {
 stop_web_server() {
     log "Stopping web server..."
     
-    # Find all python http.server processes
-    local pids=$(ps aux | grep -E "python3 -m http\.server" | grep -v grep | awk '{print $2}')
+    # Find web server processes (http.server or serve_with_radar_proxy.py)
+    local pids=$(ps aux | grep -E "python3 (-m http\.server|serve_with_radar_proxy\.py)" | grep -v grep | awk '{print $2}')
     
     if [ -z "$pids" ]; then
         log "No web server processes found"
@@ -184,7 +184,7 @@ stop_web_server() {
     sleep 2
     
     # Force kill if still running
-    local still_running=$(ps aux | grep -E "python3 -m http\.server" | grep -v grep | awk '{print $2}')
+    local still_running=$(ps aux | grep -E "python3 (-m http\.server|serve_with_radar_proxy\.py)" | grep -v grep | awk '{print $2}')
     if [ -n "$still_running" ]; then
         log "Force killing remaining processes: $still_running"
         kill -9 $still_running 2>/dev/null
@@ -192,7 +192,7 @@ stop_web_server() {
     fi
     
     # Verify all stopped
-    if ! ps aux | grep -E "python3 -m http\.server" | grep -v grep >/dev/null; then
+    if ! ps aux | grep -E "python3 (-m http\.server|serve_with_radar_proxy\.py)" | grep -v grep >/dev/null; then
         log "Web server stopped successfully"
         return 0
     else
@@ -233,7 +233,7 @@ show_status() {
     log "Checking server status..."
     
     # Check for running servers
-    local running_servers=$(ps aux | grep -E "python3 -m http\.server" | grep -v grep)
+    local running_servers=$(ps aux | grep -E "python3 (-m http\.server|serve_with_radar_proxy\.py)" | grep -v grep)
     
     if [ -n "$running_servers" ]; then
         echo "========================================"
@@ -297,15 +297,15 @@ start_web_server() {
     # Clear old log
     > "$web_server_log"
     
-    # Start server in background
+    # Start server in background (static + proxy radar AEMET)
     (cd "$RUN_DIR" && \
-     nohup python3 -m http.server $port > "$web_server_log" 2>&1 &)
+     nohup python3 serve_with_radar_proxy.py $port > "$web_server_log" 2>&1 &)
     
     sleep 3
     
     # Check if server started
-    if ps aux | grep -E "python3 -m http\.server.*$port" | grep -v grep >/dev/null; then
-        local pid=$(ps aux | grep -E "python3 -m http\.server.*$port" | grep -v grep | awk '{print $2}' | head -1)
+    if ps aux | grep -E "serve_with_radar_proxy\.py.*$port|python3 -m http\.server.*$port" | grep -v grep >/dev/null; then
+        local pid=$(ps aux | grep -E "serve_with_radar_proxy\.py.*$port|python3 -m http\.server.*$port" | grep -v grep | awk '{print $2}' | head -1)
         log "Web server started successfully (PID: $pid)"
         
         # Test server access

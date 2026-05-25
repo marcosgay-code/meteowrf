@@ -3,6 +3,7 @@
  * Depende de store.js, utils.js e initUi() (cableado desde boot.js).
  */
 import { state, clearGridCache } from './store.js';
+import { syncRadarLayer, setRadarEnabled, initRadarModule, setupRadarControls } from './radar.js';
 import {
   getTimeString,
   getRampForVariable,
@@ -29,7 +30,33 @@ let deps = {};
 
 export function initUi(appDeps) {
   deps = appDeps || {};
+  initRadarModule({
+    syncTogglesUI,
+    syncRadarExclusiveUi,
+    clearDataLayersForRadar,
+    refreshView: () => updateImage(),
+    syncRadarScale: () => updateRadarScale()
+  });
   window.openSounding = openSounding;
+}
+
+/** Desactiva capas WRF/chips para que o radar non se solape con datos do modelo. */
+function clearDataLayersForRadar() {
+    state.activeScalarVarIds = [];
+    applyDerivedCurrentVar();
+    LAYER_ORDER.forEach((id) => {
+        state.layers[id] = false;
+    });
+    state.particlesPaused = true;
+    if (state.particleEngine) state.particleEngine.stop();
+    syncVarButtonsActive();
+    syncTogglesUI();
+    syncParticlesPauseButton();
+    updateModeVisibility();
+}
+
+function syncRadarExclusiveUi() {
+    document.body.classList.toggle('radar-active-mode', !!state.layers.radar);
 }
 
 function isCloudVariable(varId) {
@@ -60,8 +87,12 @@ function applyDerivedCurrentVar() {
 }
 /** Alternar chip de variable: modo simple = unha sola entre capas (choiva/nube) e escalares */
 export function toggleScalarVariable(varId) {
+    const idx = state.activeScalarVarIds.indexOf(varId);
+    const turningOn = idx === -1;
+    if (turningOn && state.layers.radar) {
+        setRadarEnabled(false);
+    }
     if (state.uiMode === 'simple') {
-        const idx = state.activeScalarVarIds.indexOf(varId);
         if (idx !== -1) {
             state.activeScalarVarIds.splice(idx, 1);
         } else {
@@ -77,7 +108,6 @@ export function toggleScalarVariable(varId) {
         updateImage();
         return;
     }
-    const idx = state.activeScalarVarIds.indexOf(varId);
     if (idx !== -1) {
         state.activeScalarVarIds.splice(idx, 1);
     } else {
@@ -341,10 +371,17 @@ export function syncTogglesUI() {
         const id = btn.dataset.layerId;
         btn.classList.toggle('active', !!(id && state.layers[id]));
     });
+    const radarBtn = document.getElementById('toggle-radar');
+    if (radarBtn) radarBtn.classList.toggle('active', !!state.layers.radar);
+    syncRadarExclusiveUi();
     updateCurrentVarLabel();
 }
 export function setWeatherLayer(selectedId) {
     if (!selectedId) return;
+    const turningOn = !state.layers[selectedId];
+    if (turningOn && state.layers.radar) {
+        setRadarEnabled(false);
+    }
     state.layers[selectedId] = !state.layers[selectedId];
     if (state.uiMode === 'simple' && SIMPLE_LAYER_IDS.includes(selectedId)) {
         if (state.layers[selectedId]) {
@@ -614,6 +651,9 @@ export function syncVariableDataLayersOpacity() {
     }
     const windCanvas = document.getElementById('wind-particles');
     if (windCanvas) windCanvas.style.opacity = String(o);
+    if (state.radarLayer && state.radarLayer.setOpacity) {
+        state.radarLayer.setOpacity(o);
+    }
 }
 function getActiveScalarVarId() {
     let activeVar = derivePrimaryCurrentVar();
@@ -859,6 +899,57 @@ export function updateDynamicScale(varId) {
     `;
     scheduleGradientScaleLabelsLayout();
 }
+
+let aemetRadarLegendCache = null;
+
+/** Escala reflectividad AEMET (dBZ) cando o radar está activo. */
+export async function updateRadarScale() {
+    if (!deps.els.dynamicScale) return;
+    try {
+        if (!aemetRadarLegendCache) {
+            const res = await fetch('/aemet-radar/leyenda-radar/PPI');
+            if (!res.ok) return;
+            aemetRadarLegendCache = await res.json();
+        }
+        const lista = aemetRadarLegendCache?.['Lista RGBA'];
+        if (!lista?.length) return;
+
+        const buckets = [...lista].reverse();
+        const minDbz = buckets[0].Valores[0];
+        const maxDbz = lista[0].Valores[0];
+        const span = maxDbz - minDbz || 1;
+
+        const gradientStops = buckets.map((bucket, i) => {
+            const lo = bucket.Valores[0];
+            const hi = i < buckets.length - 1 ? buckets[i + 1].Valores[0] : maxDbz + 6;
+            const [r, g, b] = bucket.RGBA.map(Number);
+            const pctLo = ((lo - minDbz) / span * 100).toFixed(0);
+            const pctHi = ((hi - minDbz) / span * 100).toFixed(0);
+            return `rgb(${r}, ${g}, ${b}) ${pctLo}%, rgb(${r}, ${g}, ${b}) ${pctHi}%`;
+        }).join(', ');
+
+        const labelValues = buckets.map((b) => b.Valores[0]);
+        if (!labelValues.includes(maxDbz)) labelValues.push(maxDbz);
+
+        deps.els.dynamicScale.innerHTML = `
+        <div class="scale-body scale-body--full">
+            <div class="scale-gradient-container">
+                <div class="scale-gradient" style="background: linear-gradient(to right, ${gradientStops});">
+                    <div class="scale-labels-overlay">
+                        ${labelValues.map((v) => {
+                            const pos = ((v - minDbz) / span * 100).toFixed(1);
+                            return `<span style="left: ${pos}%;">${v}</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+        scheduleGradientScaleLabelsLayout();
+    } catch {
+        /* sen escala se o proxy/leyenda non responde */
+    }
+}
 // ============================================
 // UI RESTANTE (Paso 8b)
 // ============================================
@@ -905,6 +996,9 @@ export function setupControls() {
 
     deps.els.varSelector.onchange = (e) => {
         const v = e.target.value;
+        if (v !== 'none' && state.layers.radar) {
+            setRadarEnabled(false);
+        }
         if (v === 'none') state.activeScalarVarIds = [];
         else state.activeScalarVarIds = [v];
         applyDerivedCurrentVar();
@@ -1029,6 +1123,15 @@ export function setupControls() {
     // Toggles (Static)
     // Dynamic Layers from Manifest
     const overlaysGroup = document.getElementById('overlays-group');
+    if (overlaysGroup && !overlaysGroup.dataset.radarBound) {
+        overlaysGroup.dataset.radarBound = '1';
+        overlaysGroup.addEventListener('click', (e) => {
+            const btn = e.target.closest('#toggle-radar');
+            if (!btn || state.uiMode === 'simple') return;
+            e.preventDefault();
+            setRadarEnabled(!state.layers.radar);
+        });
+    }
     // Clear dynamic toggles but keep static ones if they exist? 
     // Actually the user said "treat in id='overlays-group'".
     // Let's assume we append or clear. Existing static layers are: roads, cities, peaks, takeoffs.
@@ -1048,6 +1151,7 @@ export function setupControls() {
     }
     applySoundingsModeFromCycle();
     syncSoundingsCycleUI();
+    setupRadarControls();
 
     const toggleBoundaries = document.getElementById('toggle-boundaries');
     if (toggleBoundaries) {
@@ -1436,6 +1540,7 @@ function applyUiModeCore(mode) {
         state.soundingsMode = 'hidden';
         state.layers.soundings = false;
         state.layers.takeoffs_names = false;
+        state.layers.radar = false;
         state.layers.rain = true;
         state.layers.blcloudpct = false;
         state.layers.lowfrac = false;

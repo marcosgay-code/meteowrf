@@ -38,6 +38,7 @@ export const state = {
     layers: {
         blcloudpct: false,
         rain: false,
+        radar: false,
         soundings: true,
         takeoffs_names: false,
         boundaries: false,
@@ -46,6 +47,13 @@ export const state = {
 
     boundariesLayer: null,
     provincesLayer: null,
+    radarLayer: null,
+    radarFrameTime: null,
+    /** @type {{ fecha: string, fichero: string }[]} */
+    radarFrames: [],
+    radarFrameIndex: 0,
+    radarPlaying: false,
+    radarAnimTimer: null,
     particleEngine: null,
     map: null,
     baseLayer: null,

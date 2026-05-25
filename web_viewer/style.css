@@ -205,6 +205,7 @@ select:focus {
 #map {
     width: 100%;
     height: 100%;
+    position: relative;
 }
 
 .map-layer.hidden {
@@ -523,6 +524,14 @@ body.scale-gradient-hide-details #current-var-label {
     box-sizing: border-box;
 }
 
+.scale-radar-caption {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 0.1rem 0.35rem 0.15rem;
+    letter-spacing: 0.02em;
+}
+
 .scale-gradient-container {
     position: relative;
     height: 28px;
@@ -643,6 +652,73 @@ body.scale-gradient-hide-details #current-var-label {
 }
 
 /** Botón opacidade pegado á dereita da fila (despois de hora) */
+.radar-time-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: stretch;
+}
+
+.radar-time-stack {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+}
+
+.radar-time-caption {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-align: center;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.radar-time-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.radar-time-label {
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #e0f2fe;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 3.4rem;
+    text-align: center;
+}
+
+.radar-time-slider {
+    flex: 1 1 auto;
+    min-width: 4rem;
+    max-width: none;
+    height: 4px;
+    accent-color: #60a5fa;
+    cursor: pointer;
+}
+
+.timeline-controls.timeline-radar-mode {
+    justify-content: stretch;
+}
+
+.timeline-controls.timeline-radar-mode .radar-time-controls {
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+.timeline-controls.timeline-radar-mode .timeline-controls-trailing {
+    margin-left: 0.25rem;
+}
+
 .timeline-controls-trailing {
     display: flex;
     align-items: center;
@@ -1324,6 +1400,20 @@ input[type=range] {
     border-color: var(--accent);
     color: #fff;
 }
+
+.opacity-bordes-row {
+    display: flex;
+    width: 100%;
+    margin-top: 0.1rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border);
+}
+
+.opacity-bordes-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
 #btn-opacity-toggle.active {
     background: var(--accent);
     border-color: var(--accent);
@@ -1503,7 +1593,16 @@ body.theme-simple #vars-clouds:empty {
     display: none;
 }
 
-body.theme-simple .sidebar-bordes-widget {
+body.theme-simple .sidebar-radar-widget {
+    display: none !important;
+}
+
+body.theme-simple .opacity-bordes-row {
+    display: none !important;
+}
+
+/* Radar activo: ocultar etiqueta de variable WRF no mapa */
+body.radar-active-mode #current-var-label {
     display: none !important;
 }
 

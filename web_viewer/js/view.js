@@ -7,6 +7,7 @@ import { getDomainBounds, updateLeafletOverlay } from './map.js';
 import {
     derivePrimaryCurrentVar,
     updateDynamicScale,
+    updateRadarScale,
     syncDynamicScaleInteractiveAttrs,
     syncVariableDataLayersOpacity,
     syncParticlesPauseButton,
@@ -16,6 +17,7 @@ import {
 } from './ui.js';
 import { updateDataGrid } from './data.js';
 import { renderStreamlinesNative } from './vectors.js';
+import { syncRadarLayer } from './radar.js';
 
 function scaleElements() {
     return {
@@ -38,6 +40,15 @@ export function refreshView() {
 
     if (!state.currentDomain) {
         if (state.particleEngine) state.particleEngine.stop();
+        return;
+    }
+
+    if (state.layers.radar) {
+        if (state.particleEngine) {
+            state.particlesPaused = true;
+            state.particleEngine.stop();
+            syncParticlesPauseButton();
+        }
         return;
     }
 
@@ -90,6 +101,31 @@ export function updateMapOverlays() {
             dynamicScale.classList.add('hidden');
             syncDynamicScaleInteractiveAttrs();
         }
+        syncRadarLayer();
+        return;
+    }
+
+    if (state.layers.radar) {
+        Object.keys(state.scalarOverlayByVarId).forEach(k => {
+            if (state.scalarOverlayByVarId[k]) state.map.removeLayer(state.scalarOverlayByVarId[k]);
+            delete state.scalarOverlayByVarId[k];
+        });
+        if (state.vectorOverlay) {
+            state.map.removeLayer(state.vectorOverlay);
+            state.vectorOverlay = null;
+        }
+        Object.keys(state.dynamicOverlays).forEach(k => {
+            if (state.dynamicOverlays[k]) state.map.removeLayer(state.dynamicOverlays[k]);
+            delete state.dynamicOverlays[k];
+        });
+        if (state.vectorLayerGroup) state.vectorLayerGroup.clearLayers();
+        if (imgScale) imgScale.classList.add('hidden');
+        if (dynamicScale) {
+            dynamicScale.classList.remove('hidden');
+            updateRadarScale();
+            syncDynamicScaleInteractiveAttrs();
+        }
+        syncRadarLayer();
         return;
     }
 
@@ -172,4 +208,5 @@ export function updateMapOverlays() {
     }
 
     syncVariableDataLayersOpacity();
+    syncRadarLayer();
 }

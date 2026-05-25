@@ -30,6 +30,9 @@ export function initMap() {
         zoomDelta: 0.5
     });
 
+    state.map.createPane('radarPane');
+    state.map.getPane('radarPane').style.zIndex = 15;
+
     // --- Base Layers Configuration ---
     const baseMaps = {
         "Relieve": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
