@@ -1536,12 +1536,6 @@ input[type=range] {
         margin: 0;
         padding-bottom: 0;
     }
-
-    /* Móbil: botón radar máis compacto (mesma letra) */
-    #toggle-radar.btn-toggle {
-        min-height: 40px;
-        padding: 0.35rem 0.55rem;
-    }
 }
 
 /* Refuerzo: el primer bloque @media também define .viewer con fondo herdado —

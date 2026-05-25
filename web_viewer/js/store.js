@@ -14,7 +14,7 @@ export const state = {
     currentHourIndex: 0,
     availableHours: [],
 
-    currentVar: 'sfcwind',
+    currentVar: 'none',
     currentZoom: '',
     currentStation: '',
 

@@ -1451,16 +1451,7 @@ export function populateVars() {
         }
     }
     if (state.activeScalarVarIds.length === 0) {
-        if (state.uiMode === 'simple') {
-            state.activeScalarVarIds = [];
-        } else {
-            const sfcwind = vars.find(v => v.id === 'sfcwind');
-            if (sfcwind) state.activeScalarVarIds = [sfcwind.id];
-            else {
-                const vis = vars.find(v => !HIDDEN_UI_VAR_IDS.has(v.id));
-                if (vis) state.activeScalarVarIds = [vis.id];
-            }
-        }
+        state.activeScalarVarIds = [];
     }
 
     if (deps.els.varSelector) deps.els.varSelector.innerHTML = '';
