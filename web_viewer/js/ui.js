@@ -483,6 +483,14 @@ export function syncVarButtonsActive() {
     });
     updateCurrentVarLabel();
 }
+/** Título para a etiqueta do mapa: evita duplicar unidades xa presentes no título (ex. «Nube (%)» + %). */
+function formatVarLabelPart(title, fallbackId, units) {
+    const label = (title || fallbackId || '').trim();
+    const u = (units || '').trim();
+    if (!u) return label;
+    if (label.endsWith(`(${u})`)) return label;
+    return `${label} (${u})`;
+}
 export function updateCurrentVarLabel() {
     const labelEl = document.getElementById('current-var-label');
     if (!labelEl) return;
@@ -492,16 +500,14 @@ export function updateCurrentVarLabel() {
         state.activeScalarVarIds.forEach(id => {
             const v = cfg.variables.find(x => x.id === id);
             if (v) {
-                const units = v.units ? ` (${v.units})` : '';
-                parts.push((v.title || id) + units);
+                parts.push(formatVarLabelPart(v.title, id, v.units));
             }
         });
     }
     if (cfg && cfg.layers) {
         cfg.layers.forEach(layer => {
             if (state.layers[layer.id]) {
-                const units = layer.units ? ` (${layer.units})` : '';
-                parts.push((layer.title || layer.id) + units);
+                parts.push(formatVarLabelPart(layer.title, layer.id, layer.units));
             }
         });
     }

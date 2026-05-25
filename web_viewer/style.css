@@ -1431,6 +1431,39 @@ input[type=range] {
 }
 .current-var-label.hidden { display: none; }
 
+/* Móvil: etiqueta de variable no solapa cos controis de zoom/capas */
+@media (max-width: 1024px) {
+    .viewer {
+        /* Altura aproximada da etiqueta (padding + liña) */
+        --mobile-var-label-height: 22px;
+        --mobile-var-label-top: 2px;
+        --mobile-map-controls-top: calc(var(--mobile-var-label-top) + var(--mobile-var-label-height) + 4px);
+        /* Capas: borde superior alineado co borde inferior da etiqueta */
+        --mobile-layer-control-top: calc(var(--mobile-var-label-top) + var(--mobile-var-label-height));
+    }
+
+    .current-var-label {
+        top: var(--mobile-var-label-top);
+        z-index: 901;
+    }
+
+    .viewer #map .leaflet-top {
+        margin-top: 0 !important;
+    }
+
+    .viewer #map .leaflet-top.leaflet-left {
+        top: var(--mobile-map-controls-top) !important;
+    }
+
+    .viewer #map .leaflet-top.leaflet-right {
+        top: var(--mobile-layer-control-top) !important;
+    }
+
+    .leaflet-control-zoom {
+        margin-top: 0 !important;
+    }
+}
+
 /* Responsive: sidebar como franja superior en móvil */
 @media (max-width: 1024px) {
     .app-container {
