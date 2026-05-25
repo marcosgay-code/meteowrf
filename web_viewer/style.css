@@ -1626,12 +1626,15 @@ body.theme-simple #vars-clouds:empty {
     display: none;
 }
 
-body.theme-simple .sidebar-radar-widget {
-    display: none !important;
+body.theme-simple .dynamic-scale {
+    cursor: default;
+    pointer-events: none;
 }
 
-body.theme-simple .opacity-bordes-row {
-    display: none !important;
+body.theme-simple .current-var-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 5px 12px;
 }
 
 /* Radar activo: ocultar etiqueta de variable WRF no mapa */
@@ -1639,9 +1642,9 @@ body.radar-active-mode #current-var-label {
     display: none !important;
 }
 
-/* Barra marca meteonube.es (só se insere en modo simple) */
+/* Barra marca meteonube.es (HTML fijo; visible só en modo simple) */
 .simple-top-brand {
-    display: flex;
+    display: none;
     flex-shrink: 0;
     justify-content: center;
     align-items: center;
@@ -1649,6 +1652,10 @@ body.radar-active-mode #current-var-label {
     background-color: var(--bg-panel);
     border-bottom: 1px solid var(--border);
     z-index: 5;
+}
+
+body.theme-simple .simple-top-brand {
+    display: flex;
 }
 
 .simple-top-brand-link {
@@ -1680,5 +1687,159 @@ body.theme-simple .sidebar .logo {
         height: auto !important;
         min-height: 0;
         flex: 1;
+    }
+
+    /* Botones de capas e timeline máis grandes (toque fácil en móbil) */
+    body.theme-simple .sidebar {
+        max-height: 62vh;
+        padding: 0.35rem 0.45rem;
+    }
+
+    body.theme-simple .sidebar-flow {
+        gap: 0.5rem;
+    }
+
+    body.theme-simple .btn-toggle {
+        min-height: 48px;
+        padding: 0.55rem 0.95rem;
+        font-size: 1.05rem;
+        border-radius: 0.5rem;
+    }
+
+    body.theme-simple .btn-toggle .btn-icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    body.theme-simple .btn-toggle.icon-only {
+        padding: 0.45rem 0.75rem;
+    }
+
+    body.theme-simple .btn-toggle.icon-only .btn-icon {
+        height: 28px;
+    }
+
+    body.theme-simple .scale-wrf-bundle > .timeline-controls.timeline-controls--compact {
+        padding: 0.4rem 0.45rem;
+        gap: 0.4rem;
+        row-gap: 0.4rem;
+    }
+
+    body.theme-simple .timeline-controls.timeline-controls--compact > .control-group-inline,
+    body.theme-simple .control-group-inline {
+        gap: 0.4rem;
+    }
+
+    body.theme-simple .time-nav-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    body.theme-simple #prev-day-btn,
+    body.theme-simple #next-day-btn,
+    body.theme-simple #prev-time-btn,
+    body.theme-simple #next-time-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 1.05rem;
+    }
+
+    body.theme-simple .timeline-date,
+    body.theme-simple .timeline-time {
+        font-weight: 700;
+        padding: 0.35rem 0.5rem;
+        min-height: 48px;
+        height: 48px;
+        line-height: 1;
+        border-radius: 0.45rem;
+        background-color: rgba(255, 255, 255, 0.07);
+        box-sizing: border-box;
+    }
+
+    body.theme-simple .timeline-date {
+        font-size: 1.15rem;
+    }
+
+    body.theme-simple .timeline-time,
+    body.theme-simple #time-selector {
+        font-size: 1.26rem;
+    }
+
+    body.theme-simple .timeline-controls.timeline-controls--compact .timeline-date {
+        max-width: min(152px, 40vw);
+    }
+
+    body.theme-simple .timeline-controls.timeline-controls--compact .timeline-time {
+        max-width: min(92px, 24vw);
+    }
+
+    body.theme-simple .radar-time-row {
+        gap: 0.5rem;
+        min-height: 48px;
+    }
+
+    body.theme-simple .radar-time-label {
+        font-size: 1.65rem;
+        min-width: 4.2rem;
+    }
+
+    body.theme-simple .radar-time-slider {
+        height: 12px;
+        min-width: 5rem;
+    }
+
+    body.theme-simple .radar-time-caption {
+        font-size: 0.8rem;
+    }
+
+    body.theme-simple .opacity-mode-btn {
+        min-height: 44px;
+        padding: 0.5rem 0.65rem;
+        font-size: 0.95rem;
+    }
+
+    body.theme-simple .viewer {
+        --mobile-var-label-height: 30px;
+    }
+
+    /* Meta fila: ocultar "Actualizado…"; botón opacidade á esquerda (DOM en scale-meta-row) */
+    body.theme-simple #last-updated {
+        display: none !important;
+    }
+
+    body.theme-simple .scale-meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 48px;
+        padding: 0 0.45rem;
+        gap: 0.5rem;
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+
+    body.theme-simple .scale-meta-row #btn-opacity-toggle {
+        flex: 0 0 auto;
+        pointer-events: auto;
+    }
+
+    body.theme-simple .scale-meta-row .leaflet-scale-anchor {
+        flex: 0 0 auto;
+        pointer-events: auto;
+    }
+
+    /* Co gradiente colapsado, manter fila mínima co botón opacidade */
+    body.theme-simple.scale-gradient-hide-details .scale-meta-row {
+        display: flex !important;
+    }
+
+    body.theme-simple.scale-gradient-hide-details .scale-meta-row .leaflet-scale-anchor {
+        display: none;
+    }
+
+    body.theme-simple .timeline-controls-trailing:empty {
+        display: none;
     }
 }

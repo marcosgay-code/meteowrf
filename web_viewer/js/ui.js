@@ -299,7 +299,8 @@ export function applyScaleChromeVisibility() {
 export function syncDynamicScaleInteractiveAttrs() {
     if (!deps.els.dynamicScale) return;
     const visible = !deps.els.dynamicScale.classList.contains('hidden');
-    deps.els.dynamicScale.tabIndex = visible ? 0 : -1;
+    const interactive = visible && state.uiMode !== 'simple';
+    deps.els.dynamicScale.tabIndex = interactive ? 0 : -1;
     deps.els.dynamicScale.setAttribute('aria-hidden', visible ? 'false' : 'true');
 }
 /** Un clic no gradiente alterna etiquetas numéricas, fila “Actualizado”/escala km, etiqueta da variable no mapa; en móbil tamén o panel de chips por riba da data/hora. */
@@ -308,10 +309,12 @@ export function setupScaleGradientToggle() {
     deps.els.dynamicScale.dataset.gradientToggleBound = '1';
     deps.els.dynamicScale.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (state.uiMode === 'simple') return;
         state.scaleChromeExpanded = !state.scaleChromeExpanded;
         applyScaleChromeVisibility();
     });
     deps.els.dynamicScale.addEventListener('keydown', (e) => {
+        if (state.uiMode === 'simple') return;
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
         state.scaleChromeExpanded = !state.scaleChromeExpanded;
@@ -1065,6 +1068,8 @@ export function setupControls() {
         opacityModeFlight.addEventListener('click', () => switchUiMode('flight'));
     }
     syncOpacityModeButtons();
+    syncOpacityTogglePlacement();
+
     if (deps.els.closeModalBtn) {
         deps.els.closeModalBtn.addEventListener('click', () => {
             deps.els.overlayContainer.classList.add('hidden');
@@ -1133,7 +1138,7 @@ export function setupControls() {
         overlaysGroup.dataset.radarBound = '1';
         overlaysGroup.addEventListener('click', (e) => {
             const btn = e.target.closest('#toggle-radar');
-            if (!btn || state.uiMode === 'simple') return;
+            if (!btn) return;
             e.preventDefault();
             setRadarEnabled(!state.layers.radar);
         });
@@ -1181,15 +1186,7 @@ export function setupControls() {
         toggleProvinces.checked = state.layers.provinces || false;
         toggleProvinces.onchange = (e) => {
             state.layers.provinces = e.target.checked;
-            if (state.layers.provinces) {
-                if (state.provincesLayer && !state.map.hasLayer(state.provincesLayer)) {
-                    state.provincesLayer.addTo(state.map);
-                }
-            } else {
-                if (state.provincesLayer && state.map.hasLayer(state.provincesLayer)) {
-                    state.map.removeLayer(state.provincesLayer);
-                }
-            }
+            syncProvincesLayer();
         };
     }
 
@@ -1287,12 +1284,14 @@ export function setupControls() {
         window.addEventListener('resize', () => {
             state.map.invalidateSize();
             scheduleGradientScaleLabelsLayout();
+            syncOpacityTogglePlacement();
         });
         window.addEventListener('orientationchange', () => {
             // Short delay to allow browser to calculate new dimensions
             setTimeout(() => {
                 state.map.invalidateSize();
                 scheduleGradientScaleLabelsLayout();
+                syncOpacityTogglePlacement();
             }, 200);
         });
     }
@@ -1538,6 +1537,37 @@ function syncOpacityModeButtons() {
     bFlight.classList.toggle('active', state.uiMode === 'flight');
 }
 
+/** Móbil simple: botón opacidade na fila meta; resto: na timeline (dereita). */
+function syncOpacityTogglePlacement() {
+    const btn = document.getElementById('btn-opacity-toggle');
+    const meta = document.querySelector('.scale-meta-row');
+    const trailing = document.querySelector('.timeline-controls-trailing');
+    const anchor = document.getElementById('leaflet-scale-anchor');
+    if (!btn || !meta || !trailing || !anchor) return;
+
+    const simpleMobile = state.uiMode === 'simple'
+        && window.matchMedia('(max-width: 1024px)').matches;
+
+    if (simpleMobile) {
+        if (btn.parentElement !== meta) meta.insertBefore(btn, anchor);
+    } else if (btn.parentElement !== trailing) {
+        trailing.appendChild(btn);
+    }
+}
+
+function syncProvincesLayer() {
+    const toggleProvinces = document.getElementById('toggle-provinces');
+    if (toggleProvinces) toggleProvinces.checked = !!state.layers.provinces;
+    if (!state.map) return;
+    if (state.layers.provinces) {
+        if (state.provincesLayer && !state.map.hasLayer(state.provincesLayer)) {
+            state.provincesLayer.addTo(state.map);
+        }
+    } else if (state.provincesLayer && state.map.hasLayer(state.provincesLayer)) {
+        state.map.removeLayer(state.provincesLayer);
+    }
+}
+
 function applyUiModeCore(mode) {
     state.uiMode = mode;
     document.body.classList.toggle('theme-simple', mode === 'simple');
@@ -1546,18 +1576,19 @@ function applyUiModeCore(mode) {
         state.soundingsMode = 'hidden';
         state.layers.soundings = false;
         state.layers.takeoffs_names = false;
-        state.layers.radar = false;
         state.layers.rain = true;
         state.layers.blcloudpct = false;
         state.layers.lowfrac = false;
         state.layers.midfrac = false;
         state.layers.highfrac = false;
-        state.layers.provinces = false;
-        ensureSimpleTopBrand();
-    } else {
-        removeSimpleTopBrand();
+        state.layers.provinces = true;
+        state.scaleChromeExpanded = true;
     }
+    syncProvincesLayer();
+    applyScaleChromeVisibility();
     syncOpacityModeButtons();
+    syncOpacityTogglePlacement();
+    syncDynamicScaleInteractiveAttrs();
     persistUiMode(mode);
 }
 
@@ -1566,6 +1597,7 @@ export function switchUiMode(mode) {
     if (mode !== 'simple' && mode !== 'flight') return;
     if (state.uiMode === mode) return;
     applyUiModeCore(mode);
+    syncOpacityTogglePlacement();
     rebuildWeatherLayerButtons();
     populateVars();
     syncTogglesUI();
@@ -1574,36 +1606,6 @@ export function switchUiMode(mode) {
     updateUIForType();
     updateMarkers();
     if (deps.updateImage) deps.updateImage();
-}
-
-/** Barra Meteonube arriba: só no modo simple (non existe no HTML en vuelo). */
-function ensureSimpleTopBrand() {
-    const root = document.querySelector('.app-root');
-    if (!root || root.querySelector('.simple-top-brand')) return;
-    const hdr = document.createElement('header');
-    hdr.className = 'simple-top-brand';
-    hdr.setAttribute('aria-label', 'Meteonube');
-    const a = document.createElement('a');
-    a.href = 'https://meteonube.es';
-    a.className = 'simple-top-brand-link';
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.title = 'meteonube.es';
-    const spanIcon = document.createElement('span');
-    spanIcon.className = 'simple-top-brand-icon';
-    spanIcon.setAttribute('aria-hidden', 'true');
-    spanIcon.textContent = '⛅';
-    const spanText = document.createElement('span');
-    spanText.className = 'simple-top-brand-text';
-    spanText.textContent = 'Meteonube';
-    a.appendChild(spanIcon);
-    a.appendChild(spanText);
-    hdr.appendChild(a);
-    root.insertBefore(hdr, root.firstChild);
-}
-
-function removeSimpleTopBrand() {
-    document.querySelector('.app-root .simple-top-brand')?.remove();
 }
 
 export function applyUiModeAndStart(mode) {

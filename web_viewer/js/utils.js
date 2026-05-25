@@ -315,26 +315,36 @@ export function formatLastUpdatedForDisplay(raw) {
     return `${dayNum} ${monthLbl} ${hh}:${min}`;
 }
 
-/** Etiqueta do selector de data: «L 24 maio» (inicial do día, día do mes, 5 letras do mes en gl-ES). */
+/** Iniciais do selector de data: L, M, X (mércores), J, V, S, D */
+const WEEKDAY_SELECTOR_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+function localDayKey(d) {
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+/** Etiqueta do selector de data: «L 24 maio», «M hoxe», «X mañá», etc. */
 export function formatDateSelectorLabel(isoDate) {
     const parts = String(isoDate).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!parts) return isoDate;
     const date = new Date(+parts[1], +parts[2] - 1, +parts[3]);
     if (Number.isNaN(date.getTime())) return isoDate;
 
-    let weekday = '';
+    const dayLetter = WEEKDAY_SELECTOR_LETTERS[date.getDay()];
+    const today = new Date();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const targetKey = localDayKey(date);
+
+    if (targetKey === localDayKey(today)) return `${dayLetter} hoxe`;
+    if (targetKey === localDayKey(tomorrow)) return `${dayLetter} mañá`;
+
     let month = '';
     try {
-        weekday = new Intl.DateTimeFormat('gl-ES', { weekday: 'long' }).format(date);
         month = new Intl.DateTimeFormat('gl-ES', { month: 'long' }).format(date);
     } catch {
-        weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(date);
         month = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(date);
     }
-    weekday = weekday.replace(/\./g, '').trim();
     month = month.replace(/\./g, '').trim().toLowerCase();
 
-    const dayLetter = weekday.charAt(0).toLocaleUpperCase('gl-ES');
     const dayNum = date.getDate();
     const month5 = month.slice(0, 5);
 
