@@ -60,8 +60,8 @@
                             0.0257, 0.0183, 0.0115, 0.0055, 0.000,
 ! Horizontal
  max_dom                  = 2
- e_we                     = 101, 201,
- e_sn                     = 101, 241,
+ e_we                     = 217, 201,
+ e_sn                     = 185, 241,
  e_vert                   = 65,  	65,
  p_top_requested          = 5000,
  num_metgrid_levels       = 34,
@@ -71,7 +71,7 @@
  grid_id                  = 1,  	2,
  parent_id                = 1, 1,
  i_parent_start           = 1, 31,
- j_parent_start           = 1, 29,
+ j_parent_start           = 1, 114,
  parent_grid_ratio        = 1, 5,
  parent_time_step_ratio   = 1, 5,
  feedback                 = 1,
