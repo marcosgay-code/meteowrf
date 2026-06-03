@@ -91,6 +91,9 @@
                         <button type="button" class="btn-toggle" id="toggle-radar" data-layer-id="radar" title="Radar de precipitación AEMET — A Coruña (Galicia, observación)">
                             <span>Radar</span>
                         </button>
+                        <button type="button" id="btn-satelite" class="btn-toggle" title="Ver imaxe satélite Meteosat en tempo real">
+                            <span>🛰️ <span class="sat-label">Satélite</span></span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -109,6 +112,11 @@
         <!-- Main Content -->
         <div class="viewer">
             <button id="menu-toggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+            <!-- Panel satélite -->
+            <div id="satelite-panel" class="satelite-panel hidden">
+                <iframe id="satelite-iframe" frameborder="0" allowfullscreen></iframe>
+            </div>
+
             <!-- Leaflet Map -->
             <div id="map" class="map-viewer">
                 <div id="current-var-label" class="current-var-label hidden"></div>
@@ -202,6 +210,57 @@
     </div>
 
     <script type="module" src="js/main.js?v=97"></script>
+    <script>
+        (function () {
+            const btnAbrir = document.getElementById('btn-satelite');
+            const panel = document.getElementById('satelite-panel');
+            const iframe = document.getElementById('satelite-iframe');
+            const LAYER_IDS = ['blcloudpct', 'lowfrac', 'midfrac', 'highfrac', 'rain'];
+
+            function limpiarVariables() {
+                const m = window.__meteonube;
+                if (!m) return;
+                m.state.activeScalarVarIds = [];
+                m.state.currentVar = 'none';
+                LAYER_IDS.forEach(id => { m.state.layers[id] = false; });
+                m.syncVarButtonsActive();
+                m.syncTogglesUI();
+                m.refreshView();
+            }
+
+            function cerrarSatelite() {
+                panel.classList.add('hidden');
+                document.body.classList.remove('satelite-active');
+            }
+
+            let sateliteCargado = false;
+            btnAbrir.addEventListener('click', function () {
+                // Toggle: si ya está abierto, cerrar y volver al estado limpio
+                if (!panel.classList.contains('hidden')) {
+                    cerrarSatelite();
+                    return;
+                }
+                if (!sateliteCargado) {
+                    iframe.src = 'satelite.html';
+                    sateliteCargado = true;
+                }
+                limpiarVariables();
+                panel.classList.remove('hidden');
+                document.body.classList.add('satelite-active');
+                // Resetear al último frame cada vez que se abre el panel
+                iframe.contentWindow?.postMessage({ type: 'resetSatelite' }, '*');
+            });
+
+
+            // Cerrar el panel al pulsar cualquier botón del sidebar excepto el de satélite
+            document.querySelector('.sidebar').addEventListener('click', function (e) {
+                const btn = e.target.closest('.btn-toggle');
+                if (btn && btn.id !== 'btn-satelite') {
+                    cerrarSatelite();
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>

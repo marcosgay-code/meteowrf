@@ -32,8 +32,8 @@ export const VAR_SHORT_LABELS = {
     hglider: 'Teito',
     wstar: 'Térmica',
     cape: 'CAPE',
-    zblcl: 'B. cuberta',
-    zsfclcl: 'Base',
+    zblcl: 'Base',
+    zsfclcl: 'Base Cu',
     t2m: '🌡️'
 };
 

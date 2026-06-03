@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="gl">
+<!--
+  Meteonube — Visor Satélite
+  Desenvolvido por Gonzalo Couselo e Marcos Gay
+  Ano: 2026
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+    <meta name="author" content="Gonzalo Couselo e Marcos Gay">
+
+    <meta property="og:title" content="🛰️ Meteonube · Satélite">
+    <meta property="og:description" content="Imaxe satélite Meteosat en tempo real — Galicia e Península Ibérica">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://app.meteonube.es/satelite.html">
+    <meta name="theme-color" content="#1a1c23">
+
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>">
+
+    <title>Meteonube · Satélite</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css?v=61">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        /* ─── Layout completo de la página de satélite ─── */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #1a1c23;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sat-page {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Barra superior */
+        .sat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            height: 48px;
+            background: #22242d;
+            border-bottom: 1px solid #333748;
+            flex-shrink: 0;
+            gap: 12px;
+        }
+
+        .sat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+
+        .sat-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #c8d0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sat-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sat-last-update {
+            font-size: 0.78rem;
+            color: #6b7590;
+        }
+
+        .sat-refresh-btn {
+            background: #2e3245;
+            color: #8b95b0;
+            border: 1px solid #3a3f58;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .sat-refresh-btn:hover {
+            background: #3a3f58;
+            color: #c8d0e0;
+        }
+
+        @media (max-width: 600px) {
+            .refresh-label { display: none; }
+            .hidden-mobile { display: none !important; }
+        }
+
+
+        /* Mapa */
+        #mapa-satelite {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+
+        /* Botón vídeo */
+        .sat-video-btn {
+            background: #2e3245;
+            color: #8b95b0;
+            border: 1px solid #3a3f58;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .sat-video-btn:hover { background: #3a3f58; color: #c8d0e0; }
+        .sat-video-btn.active {
+            background: #4a9eff;
+            color: white;
+            border-color: #4a9eff;
+        }
+
+        /* Barra de controles de animación */
+        .anim-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 16px;
+            background: #1a1c2a;
+            border-bottom: 1px solid #2a2e40;
+            flex-shrink: 0;
+        }
+        .anim-controls.hidden { display: none; }
+        .anim-btn {
+            background: #2e3245;
+            color: #c8d0e0;
+            border: 1px solid #3a3f58;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            line-height: 1;
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+        .anim-btn:hover { background: #3a3f58; }
+        .anim-slider {
+            flex: 1;
+            accent-color: #4a9eff;
+            cursor: pointer;
+        }
+        .anim-time-label {
+            font-size: 0.8rem;
+            color: #8b95b0;
+            min-width: 70px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+
+<body>
+<div class="sat-page">
+
+    <!-- Barra superior -->
+    <header class="sat-header">
+        <div class="sat-header-left">
+            <div class="sat-title">
+                🛰️ Meteosat
+            </div>
+        </div>
+        <div class="sat-header-right">
+            <span class="sat-last-update" id="sat-last-update">—</span>
+            <button class="sat-refresh-btn" id="btn-sat-refresh">↻ <span class="refresh-label">Refrescar</span></button>
+        </div>
+    </header>
+
+
+    <!-- Controles de animación (ocultos por defecto) -->
+    <div id="anim-controls" class="anim-controls">
+        <button id="btn-play-pause" class="anim-btn" title="Reproducir/Pausar">⏸</button>
+        <input type="range" id="anim-slider" class="anim-slider" min="0" max="7" value="0" step="1">
+        <span id="anim-time-label" class="anim-time-label">--:--</span>
+    </div>
+
+    <!-- Mapa -->
+    <div id="mapa-satelite"></div>
+
+</div>
+
+<script type="module" src="js/satelite.js"></script>
+</body>
+</html>
