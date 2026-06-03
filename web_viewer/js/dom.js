@@ -8,7 +8,6 @@ export const els = {
     varGroup: null,
     modeGroup: document.getElementById('mode-group'),
     opacitySlider: document.getElementById('opacity-slider'),
-    variableOpacitySlider: document.getElementById('variable-opacity-slider'),
     overlayContainer: document.getElementById('overlay-container'),
     timelineControls: document.querySelector('.timeline-controls'),
     imgSounding: document.getElementById('img-sounding'),

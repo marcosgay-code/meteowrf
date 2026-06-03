@@ -150,7 +150,7 @@ export function renderStreamlinesNative(gridData) {
     }
 
     const color = 'rgba(0, 0, 0, 0.75)';
-    const lineOp = state.variableLayerOpacity;
+    const lineOp = state.varLayerOpacityMap[state.currentVar] ?? 1;
 
     L.polyline(lines, {
         color: color,

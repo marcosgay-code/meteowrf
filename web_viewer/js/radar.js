@@ -427,7 +427,7 @@ async function showRadarFrameAtIndex(index) {
     if (token !== radarFrameShowToken || !state.layers.radar || !state.map) return;
 
     const options = {
-        opacity: state.variableLayerOpacity,
+        opacity: state.varLayerOpacityMap['radar'] ?? 1,
         pane: 'radarPane',
         interactive: false
     };
@@ -438,11 +438,11 @@ async function showRadarFrameAtIndex(index) {
     } else if (state.radarLayer._url !== url) {
         state.radarLayer.setUrl(url);
         state.radarLayer.setCorners(corners);
-        state.radarLayer.setOpacity(state.variableLayerOpacity);
+        state.radarLayer.setOpacity(state.varLayerOpacityMap['radar'] ?? 1);
         attachRadarLayerErrorHandler();
     } else {
         state.radarLayer.setCorners(corners);
-        state.radarLayer.setOpacity(state.variableLayerOpacity);
+        state.radarLayer.setOpacity(state.varLayerOpacityMap['radar'] ?? 1);
     }
 
     state.radarFrameIndex = clamped;
@@ -554,7 +554,7 @@ export function syncRadarLayer() {
     }
 
     if (state.radarLayer && state.radarFrames.length) {
-        state.radarLayer.setOpacity(state.variableLayerOpacity);
+        state.radarLayer.setOpacity(state.varLayerOpacityMap['radar'] ?? 1);
         updateRadarControlsVisibility(true);
         updateRadarTimeLabel();
         maybeRefreshStaleRadarTimeline();

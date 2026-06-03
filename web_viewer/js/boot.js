@@ -5,7 +5,7 @@ import { state } from './store.js';
 import {
     LS_UI_MODE_KEY,
     LS_OPACITY_MAP_KEY,
-    LS_OPACITY_VARS_KEY,
+    LS_OPACITY_VAR_MAP_KEY,
     formatLastUpdatedForDisplay
 } from './utils.js';
 import { els } from './dom.js';
@@ -39,11 +39,11 @@ function createParticleEngine() {
 function pruneLocalStorageKeepOpacityOnly() {
     try {
         const mapOp = localStorage.getItem(LS_OPACITY_MAP_KEY);
-        const varOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
+        const varOp = localStorage.getItem(LS_OPACITY_VAR_MAP_KEY);
         const uiMode = localStorage.getItem(LS_UI_MODE_KEY);
         localStorage.clear();
         if (mapOp !== null) localStorage.setItem(LS_OPACITY_MAP_KEY, mapOp);
-        if (varOp !== null) localStorage.setItem(LS_OPACITY_VARS_KEY, varOp);
+        if (varOp !== null) localStorage.setItem(LS_OPACITY_VAR_MAP_KEY, varOp);
         if (uiMode !== null) localStorage.setItem(LS_UI_MODE_KEY, uiMode);
     } catch (e) {
         /* modo privado / bloqueo */

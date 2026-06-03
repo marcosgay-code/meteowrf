@@ -9,7 +9,7 @@
 
 export const LS_UI_MODE_KEY = 'meteonube_ui_mode';
 export const LS_OPACITY_MAP_KEY = 'meteowrf_layer_opacity';
-export const LS_OPACITY_VARS_KEY = 'meteowrf_variable_layer_opacity';
+export const LS_OPACITY_VAR_MAP_KEY = 'meteowrf_var_opacity_map';
 
 export const SIMPLE_SCALAR_IDS = ['sfcwind', 't2m'];
 export const SIMPLE_LAYER_IDS = ['rain', 'blcloudpct'];
@@ -331,11 +331,13 @@ export function formatDateSelectorLabel(isoDate) {
 
     const dayLetter = WEEKDAY_SELECTOR_LETTERS[date.getDay()];
     const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
     const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     const targetKey = localDayKey(date);
 
-    if (targetKey === localDayKey(today)) return `${dayLetter} hoxe`;
-    if (targetKey === localDayKey(tomorrow)) return `${dayLetter} mañá`;
+    if (targetKey === localDayKey(today)) return 'hoxe';
+    if (targetKey === localDayKey(yesterday)) return 'onte';
+    if (targetKey === localDayKey(tomorrow)) return 'mañá';
 
     let month = '';
     try {

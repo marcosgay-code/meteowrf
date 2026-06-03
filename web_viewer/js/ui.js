@@ -17,7 +17,7 @@ import {
   LAYER_ICONS,
   LAYER_ORDER,
   LS_OPACITY_MAP_KEY,
-  LS_OPACITY_VARS_KEY,
+  LS_OPACITY_VAR_MAP_KEY,
   LS_UI_MODE_KEY,
   VAR_ICONS,
   HIDDEN_UI_VAR_IDS,
@@ -27,6 +27,78 @@ import {
 } from './utils.js';
 
 let deps = {};
+
+// ─── Opacidade por variable ────────────────────────────────────────────────
+
+export function getVarOpacity(varId) {
+    const v = state.varLayerOpacityMap[varId];
+    return (v !== undefined) ? v : 1;
+}
+function setVarOpacity(varId, value) {
+    state.varLayerOpacityMap[varId] = value;
+    saveVarOpacityMap();
+    syncVariableDataLayersOpacity();
+}
+function saveVarOpacityMap() {
+    try {
+        localStorage.setItem(LS_OPACITY_VAR_MAP_KEY, JSON.stringify(state.varLayerOpacityMap));
+    } catch (e) { /* cuota localStorage excedida */ }
+}
+function loadVarOpacityMap() {
+    try {
+        const stored = localStorage.getItem(LS_OPACITY_VAR_MAP_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') state.varLayerOpacityMap = parsed;
+        }
+    } catch (e) { /* JSON corrupto */ }
+}
+function getVarLabel(varId) {
+    if (varId === 'radar') return '📡 Radar';
+    const cfg = state.manifest?.configuration;
+    if (cfg?.variables) {
+        const v = cfg.variables.find(x => x.id === varId);
+        if (v?.title) return v.title;
+    }
+    if (cfg?.layers) {
+        const l = cfg.layers.find(x => x.id === varId);
+        if (l?.title) return l.title;
+    }
+    return VAR_SHORT_LABELS[varId] || LAYER_SHORT_LABELS[varId] || varId;
+}
+function createVarOpacityRow(varId) {
+    const label = getVarLabel(varId);
+    const val = Math.round(getVarOpacity(varId) * 100);
+    const row = document.createElement('div');
+    row.className = 'opacity-row';
+    row.dataset.varOpacityId = varId;
+    row.innerHTML = `<label class="opacity-label">${label}</label>
+<input type="range" class="var-opacity-input" min="10" max="100" value="${val}">`;
+    row.querySelector('input').addEventListener('input', e => {
+        const v = Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 100));
+        setVarOpacity(varId, v / 100);
+    });
+    return row;
+}
+export function syncVarOpacitySliders() {
+    const container = document.getElementById('var-opacity-sliders');
+    if (!container) return;
+    const active = new Set([
+        ...state.activeScalarVarIds.filter(id => id && id !== 'none'),
+        ...LAYER_ORDER.filter(id => state.layers[id]),
+        ...(state.layers.radar ? ['radar'] : [])
+    ]);
+    // Elimina las filas que ya no están activas
+    container.querySelectorAll('[data-var-opacity-id]').forEach(row => {
+        if (!active.has(row.dataset.varOpacityId)) row.remove();
+    });
+    // Añade las que faltan (mantiene orden)
+    active.forEach(varId => {
+        if (!container.querySelector(`[data-var-opacity-id="${varId}"]`)) {
+            container.appendChild(createVarOpacityRow(varId));
+        }
+    });
+}
 
 export function initUi(appDeps) {
   deps = appDeps || {};
@@ -113,7 +185,12 @@ export function toggleScalarVariable(varId) {
     } else {
         const cat = scalarVarCategory(varId);
         state.activeScalarVarIds = state.activeScalarVarIds.filter(v => {
-            if (cat === 'wind' && WIND_VAR_IDS.has(v)) return false;
+            if (cat === 'wind') {
+                // wblmaxmin (convergencia) es compatible con todo: no elimina ni la eliminan
+                if (varId === 'wblmaxmin') return true;
+                if (v === 'wblmaxmin') return true;
+                return !WIND_VAR_IDS.has(v);
+            }
             if (cat === 'cloud' && CLOUD_VAR_IDS.has(v)) return false;
             return true;
         });
@@ -378,6 +455,7 @@ export function syncTogglesUI() {
     if (radarBtn) radarBtn.classList.toggle('active', !!state.layers.radar);
     syncRadarExclusiveUi();
     updateCurrentVarLabel();
+    syncVarOpacitySliders();
 }
 export function setWeatherLayer(selectedId) {
     if (!selectedId) return;
@@ -485,6 +563,7 @@ export function syncVarButtonsActive() {
         btn.classList.toggle('active', state.activeScalarVarIds.includes(btn.dataset.varId));
     });
     updateCurrentVarLabel();
+    syncVarOpacitySliders();
 }
 /** Título para a etiqueta do mapa: evita duplicar unidades xa presentes no título (ex. «Nube (%)» + %). */
 function formatVarLabelPart(title, fallbackId, units) {
@@ -636,32 +715,32 @@ export function updateTooltip(latlng, stationName = null) {
     }
     deps.els.windTooltip.classList.add('hidden');
 }
-/** Aplica state.variableLayerOpacity a imageOverlays, liñas de vento e canvas de partículas */
+/** Aplica opacidade individual (varLayerOpacityMap) a cada overlay activo */
 export function syncVariableDataLayersOpacity() {
     if (!state.map) return;
-    const o = state.variableLayerOpacity;
     Object.keys(state.scalarOverlayByVarId).forEach(vid => {
         const lyr = state.scalarOverlayByVarId[vid];
-        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
+        if (lyr && lyr.setOpacity) lyr.setOpacity(getVarOpacity(vid));
     });
     if (state.vectorOverlay && state.vectorOverlay.setOpacity) {
-        state.vectorOverlay.setOpacity(o);
+        state.vectorOverlay.setOpacity(getVarOpacity(state.currentVar));
     }
     Object.keys(state.dynamicOverlays).forEach(k => {
         const lyr = state.dynamicOverlays[k];
-        if (lyr && lyr.setOpacity) lyr.setOpacity(o);
+        if (lyr && lyr.setOpacity) lyr.setOpacity(getVarOpacity(k));
     });
     if (state.vectorLayerGroup) {
+        const windOp = getVarOpacity(state.currentVar);
         state.vectorLayerGroup.eachLayer(lyr => {
             if (lyr && lyr.setStyle) {
-                lyr.setStyle({ opacity: o, fillOpacity: o });
+                lyr.setStyle({ opacity: windOp, fillOpacity: windOp });
             }
         });
     }
     const windCanvas = document.getElementById('wind-particles');
-    if (windCanvas) windCanvas.style.opacity = String(o);
+    if (windCanvas) windCanvas.style.opacity = String(getVarOpacity(state.currentVar));
     if (state.radarLayer && state.radarLayer.setOpacity) {
-        state.radarLayer.setOpacity(o);
+        state.radarLayer.setOpacity(getVarOpacity('radar'));
     }
 }
 function getActiveScalarVarId() {
@@ -1034,20 +1113,7 @@ export function setupControls() {
         };
     }
 
-    if (deps.els.variableOpacitySlider) {
-        const savedVarOp = localStorage.getItem(LS_OPACITY_VARS_KEY);
-        if (savedVarOp !== null) {
-            const v = Math.max(10, Math.min(100, parseInt(savedVarOp, 10) || 100));
-            deps.els.variableOpacitySlider.value = String(v);
-            state.variableLayerOpacity = v / 100;
-        }
-        deps.els.variableOpacitySlider.oninput = (e) => {
-            const v = Math.max(10, Math.min(100, parseInt(e.target.value, 10) || 100));
-            state.variableLayerOpacity = v / 100;
-            localStorage.setItem(LS_OPACITY_VARS_KEY, String(v));
-            syncVariableDataLayersOpacity();
-        };
-    }
+    loadVarOpacityMap();
 
     const opacityToggleBtn = document.getElementById('btn-opacity-toggle');
     const opacityContainer = document.getElementById('opacity-container');

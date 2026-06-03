@@ -28,7 +28,7 @@
     <title>Meteonube</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=62">
+    <link rel="stylesheet" href="style.css?v=63">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -135,10 +135,7 @@
                                     <label class="opacity-label" for="opacity-slider">🗺️ Opacidade mapa base</label>
                                     <input type="range" id="opacity-slider" min="10" max="100" value="45">
                                 </div>
-                                <div class="opacity-row">
-                                    <label class="opacity-label" for="variable-opacity-slider">📊 Opacidade capas datos</label>
-                                    <input type="range" id="variable-opacity-slider" min="10" max="100" value="100">
-                                </div>
+                                <div id="var-opacity-sliders"></div>
                                 <div class="opacity-mode-row">
                                     <span class="opacity-label">Modo</span>
                                     <div class="opacity-mode-toggle" role="group" aria-label="Modo do visor">
@@ -209,7 +206,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=98"></script>
+    <script type="module" src="js/main.js?v=99"></script>
     <script>
         (function () {
             const btnAbrir = document.getElementById('btn-satelite');

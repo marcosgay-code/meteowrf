@@ -19,8 +19,8 @@ export const state = {
     currentStation: '',
 
     overlayOpacity: 0.45,
-    /** Opacidade das capas de datos WRF (escalares, vectores, nubes…), 0–1 */
-    variableLayerOpacity: 1,
+    /** Opacidade individual por capa (clave: varId o layerId → 0–1). Default: 1 */
+    varLayerOpacityMap: {},
 
     vectorMode: 'particles',
     /** Pausa solo a animación das partículas (non cambia a modo vector) */

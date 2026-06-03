@@ -13,7 +13,8 @@ import {
     syncParticlesPauseButton,
     updateSoundingImage,
     updateMeteogramImage,
-    updateMarkers
+    updateMarkers,
+    getVarOpacity
 } from './ui.js';
 import { updateDataGrid } from './data.js';
 import { renderStreamlinesNative } from './vectors.js';
@@ -82,7 +83,6 @@ export function updateMapOverlays() {
     if (!state.map) return;
 
     const bounds = getDomainBounds();
-    const varOp = state.variableLayerOpacity;
     const { imgScale, dynamicScale } = scaleElements();
 
     if (!bounds || !state.currentDomain) {
@@ -147,7 +147,7 @@ export function updateMapOverlays() {
             !!gridUrl,
             gridUrl,
             bounds,
-            { opacity: varOp, zIndex: zScalar }
+            { opacity: getVarOpacity(vid), zIndex: zScalar }
         );
         zScalar += 1;
     });
@@ -164,7 +164,7 @@ export function updateMapOverlays() {
         showVector,
         vecUrl,
         bounds,
-        { opacity: varOp, zIndex: 30 }
+        { opacity: getVarOpacity(state.currentVar), zIndex: 30 }
     );
 
     if (!state.vectorLayerGroup) {
@@ -188,7 +188,7 @@ export function updateMapOverlays() {
             showLayer,
             layerUrl,
             bounds,
-            { opacity: varOp, zIndex: 40 }
+            { opacity: getVarOpacity(layer.id), zIndex: 40 }
         );
     });
 
