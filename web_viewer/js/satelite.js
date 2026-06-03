@@ -11,10 +11,20 @@ const NUM_FRAMES = 6;          // 1h30min a 15 min por frame
 const LAYER_DIA   = 'msg_fes:rgb_eview'; // visible (solo funciona de día)
 const LAYER_NOCHE = 'msg_fes:ir108';     // infrarrojo 10.8µm (día y noche)
 
-/** Aproximación para la Península Ibérica: día = 5:30–19:30 UTC */
+// Vista centrada en Galicia con contexto de Cantábrico y N. Portugal
+// Ancho: ~5.5° lon ≈ 420 km  |  Alto: ~4° lat ≈ 445 km
+// A 1400×1300 px → ~3 px/km → aprovecha al máximo los ~3 km/px nativos de Meteosat
+const SAT_SW  = [41.0, -10.5]; // [lat, lng] esquina SW
+const SAT_NE  = [45.0,  -5.0]; // [lat, lng] esquina NE
+const SAT_W   = 1400;
+const SAT_H   = 1300;
+
+/** Península Ibérica: canal visible 6:00–17:00 UTC (sol suficientemente alto).
+ *  A partir de las 17:00 UTC (~19:00 local en verano) el sol es demasiado bajo
+ *  y EUMETSAT puede devolver errores en rgb_eview; usamos IR108 más fiable. */
 function isDia(date) {
     const h = date.getUTCHours() + date.getUTCMinutes() / 60;
-    return h >= 5.5 && h <= 19.5;
+    return h >= 6.0 && h <= 17.0;
 }
 
 function getLayer(date) {
@@ -23,6 +33,30 @@ function getLayer(date) {
 
 function toWmsTime(date) {
     return date.toISOString(); // EUMETSAT requiere milisegundos: 2026-06-03T08:30:00.000Z
+}
+
+function buildWmsUrl(date) {
+    // Convierte lat/lng a metros EPSG:3857 para el parámetro BBOX del WMS
+    const R = 6378137;
+    const toX = (lon) => lon * Math.PI / 180 * R;
+    const toY = (lat) => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * R;
+    const bbox = [toX(SAT_SW[1]), toY(SAT_SW[0]), toX(SAT_NE[1]), toY(SAT_NE[0])].join(',');
+    const params = new URLSearchParams({
+        service: 'WMS', request: 'GetMap', version: '1.3.0',
+        layers: getLayer(date), styles: '',
+        format: 'image/png', transparent: 'true',
+        crs: 'EPSG:3857', bbox,
+        width: SAT_W, height: SAT_H,
+        TIME: toWmsTime(date),
+    });
+    return `${EUMETSAT_WMS_URL}?${params.toString()}`;
+}
+
+function crearOverlay(date, opacity) {
+    return L.imageOverlay(buildWmsUrl(date), L.latLngBounds(SAT_SW, SAT_NE), {
+        opacity,
+        interactive: false,
+    });
 }
 
 function formatHora(date) {
@@ -117,27 +151,22 @@ function abrirVideo() {
 
     let loadedCount = 0;
     pasos.forEach((t) => {
-        const capa = L.tileLayer.wms(EUMETSAT_WMS_URL, {
-            layers: getLayer(t),
-            TIME: toWmsTime(t),
-            format: 'image/png',
-            transparent: true,
-            version: '1.3.0',
-            opacity: 0,
-        });
+        const capa = crearOverlay(t, 0);
         capa.addTo(mapaSatelite);
         capasFrames.push(capa);
 
-        capa.once('load', () => {
+        const onFrameReady = () => {
             loadedCount++;
             if (loadedCount === pasos.length) {
-                // Frames listos: ocultar capa estática y mostrar último frame
+                // Todos los frames terminaron (con éxito o con error): activar animación
                 capaSatelite.setOpacity(0);
                 btnPlay.textContent = '▶';
                 btnPlay.disabled = false;
                 irAFrame(pasos.length - 1);
             }
-        });
+        };
+        capa.once('load', onFrameReady);
+        capa.once('error', onFrameReady);
     });
 
     const slider = document.getElementById('anim-slider');
@@ -154,8 +183,8 @@ window.addEventListener('message', (e) => {
 
 function inicializar() {
     mapaSatelite = L.map('mapa-satelite', {
-        center: [42.0, -8.0],
-        zoom: 6,
+        center: [43.0, -7.8],
+        zoom: 7,
         zoomControl: true,
         attributionControl: false,
     });
@@ -169,20 +198,15 @@ function inicializar() {
     }).addTo(mapaSatelite);
 
     tiempoActual = getLatestAvailableTime();
-    capaSatelite = L.tileLayer.wms(EUMETSAT_WMS_URL, {
-        layers: getLayer(tiempoActual),
-        TIME: toWmsTime(tiempoActual),
-        format: 'image/png',
-        transparent: true,
-        version: '1.3.0',
-        opacity: 0.85,
-    });
+    capaSatelite = crearOverlay(tiempoActual, 0.85);
     capaSatelite.addTo(mapaSatelite);
 
     actualizarTimestamp(tiempoActual);
 
-    // Arrancar animación automáticamente
-    abrirVideo();
+    // Esperar a que la imagen estática cargue, luego precargar los frames
+    capaSatelite.once('load', () => {
+        abrirVideo();
+    });
 
     document.getElementById('btn-play-pause').addEventListener('click', () => {
         if (animando) pausarAnim();
@@ -209,7 +233,7 @@ function inicializar() {
 function refrescarCapa() {
     if (!capaSatelite) return;
     tiempoActual = getLatestAvailableTime();
-    capaSatelite.setParams({ layers: getLayer(tiempoActual), TIME: toWmsTime(tiempoActual) });
+    capaSatelite.setUrl(buildWmsUrl(tiempoActual));
     actualizarTimestamp(tiempoActual);
 }
 

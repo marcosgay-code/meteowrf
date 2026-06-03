@@ -6,12 +6,14 @@
 import base64
 import http.server
 import json
+import shutil
 import ssl
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import OrderedDict
 from pathlib import Path
 
 AEMET_RADAR_PREFIX = '/aemet-radar/'
@@ -44,6 +46,32 @@ def _load_env(path: Path) -> dict:
 _env = _load_env(ROOT / '.env')
 _EUMETSAT_KEY = _env.get('EUMETSAT_CONSUMER_KEY', '')
 _EUMETSAT_SECRET = _env.get('EUMETSAT_CONSUMER_SECRET', '')
+
+
+# ─── Caché LRU en memoria ─────────────────────────────────────────────────────
+
+class _LRUCache:
+    """Caché LRU simple basada en OrderedDict."""
+
+    def __init__(self, max_size: int = 200):
+        self._cache: OrderedDict = OrderedDict()
+        self._max_size = max_size
+
+    def get(self, key: str):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        return None
+
+    def set(self, key: str, value):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        elif len(self._cache) >= self._max_size:
+            self._cache.popitem(last=False)
+        self._cache[key] = value
+
+
+_cache = _LRUCache(max_size=200)
 
 
 # ─── Gestor de tokens OAuth2 EUMETSAT ────────────────────────────────────────
@@ -121,6 +149,22 @@ class RadarProxyHandler(http.server.SimpleHTTPRequestHandler):
                       extra_headers={'Authorization': f'Bearer {token}'})
 
     def _forward(self, upstream: str, user_agent: str, extra_headers: dict = None):
+        is_satellite = self.path.startswith(EUMETSAT_WMS_PREFIX)
+
+        # Servir desde caché si existe (solo tiles de satélite, que son inmutables por timestamp)
+        if is_satellite:
+            cached = _cache.get(upstream)
+            if cached:
+                self.send_response(200)
+                self.send_header('Content-Type', cached['content_type'])
+                self.send_header('Content-Length', str(cached['length']))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Cache-Control', 'public, max-age=86400')
+                self.end_headers()
+                self.wfile.write(cached['body'])
+                print(f'[CACHE HIT] {upstream[upstream.find("TIME"):][:40]}')
+                return
+
         headers = {'User-Agent': user_agent}
         if extra_headers:
             headers.update(extra_headers)
@@ -128,13 +172,19 @@ class RadarProxyHandler(http.server.SimpleHTTPRequestHandler):
             req = urllib.request.Request(upstream, headers=headers)
             ctx = ssl.create_default_context()
             with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
-                body = resp.read()
-                self.send_response(resp.status)
                 ct = resp.headers.get('Content-Type', 'application/octet-stream')
+                body = resp.read()
+                length = len(body)
+
+                # Guardar en caché solo tiles de satélite con respuesta válida
+                if is_satellite and resp.status == 200:
+                    _cache.set(upstream, {'body': body, 'content_type': ct, 'length': length})
+
+                self.send_response(resp.status)
                 self.send_header('Content-Type', ct)
-                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Content-Length', str(length))
                 self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Cache-Control', 'public, max-age=86400' if is_satellite else 'no-cache')
                 self.end_headers()
                 self.wfile.write(body)
         except urllib.error.HTTPError as exc:
