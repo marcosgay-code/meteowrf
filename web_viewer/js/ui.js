@@ -1305,6 +1305,7 @@ export function setupControls() {
         setupMapOverlayClickShield();
 
         state.map.on('mousemove', (e) => {
+            if (isMapChromeTarget(e.originalEvent?.target)) return;
             if (!state.isTooltipPinned && !isMapPopupOpen()) updateTooltip(e.latlng);
         });
         state.map.on('popupopen', () => {
