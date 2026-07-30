@@ -28,7 +28,7 @@
     <title>Meteonube</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="style.css?v=63">
+    <link rel="stylesheet" href="style.css?v=64">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -178,15 +178,10 @@
                         </div>
                     </div>
                 </div>
-                <!-- Map Tooltip (Generic for all variables) -->
+                <!-- Map Tooltip (Generic for all variables, unha fila por variable activa) -->
                 <div id="wind-tooltip" class="wind-tooltip hidden">
                     <div id="wt-station-name" class="wt-station-name hidden">Station Name</div>
-                    <div class="wt-name" id="wt-var-name">Variable</div>
-                    <div class="wt-val"><span id="wt-value">0</span> <span id="wt-units" class="wt-unit">--</span></div>
-                    <div class="wt-dir" id="wt-dir-box">
-                        <span id="wt-dir-arrow">↑</span>
-                        <span id="wt-dir-deg">0</span>°
-                    </div>
+                    <div id="wt-rows" class="wt-rows"></div>
                 </div>
             </div>
 
@@ -206,7 +201,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=99"></script>
+    <script type="module" src="js/main.js?v=100"></script>
     <script>
         (function () {
             const btnAbrir = document.getElementById('btn-satelite');

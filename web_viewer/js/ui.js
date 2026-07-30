@@ -653,6 +653,32 @@ function isMapChromeTarget(target) {
     return !!target.closest(MAP_OVERLAY_CLICK_SHIELD);
 }
 
+/**
+ * Zonas "mortas" para o tooltip: esquina superior-esquerda (zoom + selector de variable)
+ * e superior-dereita (capas do mapa base + pausa do vento). Compróbase por xeometría
+ * (non só polo elemento exacto tocado) para cubrir toques imprecisos en móbil.
+ */
+function isInMapControlZone(originalEvent) {
+    if (!originalEvent) return false;
+    const point = (originalEvent.touches && originalEvent.touches[0]) || originalEvent;
+    const clientX = point.clientX;
+    const clientY = point.clientY;
+    if (typeof clientX !== 'number' || typeof clientY !== 'number') return false;
+    const MARGIN = 6;
+    const zones = document.querySelectorAll('.leaflet-top.leaflet-left, .leaflet-top.leaflet-right');
+    for (const zone of zones) {
+        const r = zone.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (
+            clientX >= r.left - MARGIN && clientX <= r.right + MARGIN &&
+            clientY >= r.top - MARGIN && clientY <= r.bottom + MARGIN
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function dismissPinnedTooltip() {
     if (!state.map) return;
     if (state.clickMarker) {
@@ -690,22 +716,25 @@ export function updateTooltip(latlng, stationName = null) {
             deps.els.wtStationName.classList.add('hidden');
         }
     }
-    const activeVarId = getActiveScalarVarId();
-    const data = getPointData(latlng, activeVarId);
-    if (data) {
-        if (deps.els.wtVarName) deps.els.wtVarName.textContent = data.title;
-        if (deps.els.wtValue) deps.els.wtValue.textContent = data.value.toFixed(1);
-        if (deps.els.wtUnits) deps.els.wtUnits.textContent = data.units;
-        // Direction handling
-        if (data.dir !== null && data.dir !== undefined) {
-            if (deps.els.wtDirDeg) {
-                deps.els.wtDirDeg.textContent = Math.round(data.dir);
-                deps.els.wtDirDeg.parentElement.classList.remove('hidden');
-            }
-            if (deps.els.wtDirArrow) deps.els.wtDirArrow.style.transform = `rotate(${(data.dir + 180) % 360}deg)`;
-        } else {
-            if (deps.els.wtDirDeg) deps.els.wtDirDeg.parentElement.classList.add('hidden');
-        }
+    // Unha fila por cada variable/capa activa (modo flight permite ata 2 + capas dinámicas)
+    const rows = getActiveVarIds()
+        .map(varId => getPointData(latlng, varId))
+        .filter(data => data !== null);
+
+    if (rows.length > 0 && deps.els.wtRows) {
+        deps.els.wtRows.innerHTML = rows.map(data => {
+            const hasDir = data.dir !== null && data.dir !== undefined;
+            return `
+                <div class="wt-row">
+                    <div class="wt-name">${data.title}</div>
+                    <div class="wt-val"><span class="wt-value">${data.value.toFixed(1)}</span> <span class="wt-unit">${data.units}</span></div>
+                    ${hasDir ? `
+                    <div class="wt-dir">
+                        <span class="wt-dir-arrow" style="transform: rotate(${(data.dir + 180) % 360}deg)">↑</span>
+                        <span class="wt-dir-deg">${Math.round(data.dir)}</span>°
+                    </div>` : ''}
+                </div>`;
+        }).join('');
         // Tooltip position
         const containerPoint = state.map.latLngToContainerPoint(latlng);
         deps.els.windTooltip.style.left = `${containerPoint.x}px`;
@@ -751,6 +780,16 @@ function getActiveScalarVarId() {
         });
     }
     return activeVar;
+}
+/** Todas as variables/capas actualmente activas (para amosar cada unha na súa fila do tooltip) */
+function getActiveVarIds() {
+    const ids = [...state.activeScalarVarIds];
+    if (state.manifest && state.manifest.configuration.layers) {
+        state.manifest.configuration.layers.forEach(l => {
+            if (state.layers[l.id] && !ids.includes(l.id)) ids.push(l.id);
+        });
+    }
+    return ids.filter(id => id && id !== 'none');
 }
 function getDomainBounds() {
     if (!state.manifest || !state.manifest.configuration || !state.manifest.configuration.domain_bounds) return null;
@@ -1305,7 +1344,7 @@ export function setupControls() {
         setupMapOverlayClickShield();
 
         state.map.on('mousemove', (e) => {
-            if (isMapChromeTarget(e.originalEvent?.target)) return;
+            if (isMapChromeTarget(e.originalEvent?.target) || isInMapControlZone(e.originalEvent)) return;
             if (!state.isTooltipPinned && !isMapPopupOpen()) updateTooltip(e.latlng);
         });
         state.map.on('popupopen', () => {
@@ -1315,7 +1354,7 @@ export function setupControls() {
             if (!state.isTooltipPinned) deps.els.windTooltip.classList.add('hidden');
         });
         state.map.on('click', (e) => {
-            if (isMapChromeTarget(e.originalEvent?.target)) {
+            if (isMapChromeTarget(e.originalEvent?.target) || isInMapControlZone(e.originalEvent)) {
                 if (state.isTooltipPinned) dismissPinnedTooltip();
                 return;
             }

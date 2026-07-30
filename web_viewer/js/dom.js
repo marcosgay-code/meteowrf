@@ -18,11 +18,7 @@ export const els = {
     closeModalBtn: document.getElementById('close-modal'),
     windTooltip: document.getElementById('wind-tooltip'),
     wtStationName: document.getElementById('wt-station-name'),
-    wtVarName: document.getElementById('wt-var-name') || document.createElement('div'),
-    wtValue: document.getElementById('wt-value') || document.getElementById('wt-speed'),
-    wtUnits: document.getElementById('wt-units') || document.createElement('span'),
-    wtDirDeg: document.getElementById('wt-dir-deg'),
-    wtDirArrow: document.getElementById('wt-dir-arrow'),
+    wtRows: document.getElementById('wt-rows'),
     windParticles: null,
     mapContainer: document.getElementById('map'),
     dynamicScale: document.getElementById('dynamic-scale')

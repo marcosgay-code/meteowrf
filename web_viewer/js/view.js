@@ -14,6 +14,7 @@ import {
     updateSoundingImage,
     updateMeteogramImage,
     updateMarkers,
+    updateTooltip,
     getVarOpacity
 } from './ui.js';
 import { updateDataGrid } from './data.js';
@@ -33,6 +34,11 @@ export function refreshView() {
 
     updateMapOverlays();
     updateMarkers();
+
+    // Refresca o valor do tooltip fixado (clic) coa nova data/hora/grid cargados
+    if (state.isTooltipPinned && state.clickMarker) {
+        updateTooltip(state.clickMarker.getLatLng());
+    }
 
     if (state.currentStation) {
         updateSoundingImage();

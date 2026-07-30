@@ -118,8 +118,19 @@ _token_manager = _TokenManager(_EUMETSAT_KEY, _EUMETSAT_SECRET)
 # ─── Handler HTTP ─────────────────────────────────────────────────────────────
 
 class RadarProxyHandler(http.server.SimpleHTTPRequestHandler):
+    # Ficheiros que cambian co código (JS/CSS/HTML): forzar revalidación en cada
+    # carga para que o navegador nunca sirva unha versión antiga en caché,
+    # aínda que os módulos JS internos se importen sen query de versión (?v=).
+    NO_CACHE_EXTENSIONS = ('.js', '.css', '.html')
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def end_headers(self):
+        path_only = self.path.split('?', 1)[0]
+        if path_only in ('', '/') or path_only.endswith(self.NO_CACHE_EXTENSIONS):
+            self.send_header('Cache-Control', 'no-cache, must-revalidate')
+        super().end_headers()
 
     def do_GET(self):
         if self.path.startswith(AEMET_RADAR_PREFIX):
